@@ -8,6 +8,7 @@ class Link(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     platform = models.CharField(max_length=100, blank=True, null=True)
+    report_count = models.PositiveIntegerField(default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links", default=1)
 
     def score(self):
