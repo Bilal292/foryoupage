@@ -7,6 +7,16 @@
 
 </head>
 <body>
-    <h1> testing </h1>
+    <h1>All Links</h1>
+    <ul>
+        {% for link in links %}
+            <li>
+                <a href="{{ link.url }}" target="_blank">{{ link.title }}</a>
+                (Score: {{ link.score }})
+            </li>
+        {% empty %}
+            <li>No links yet!</li>
+        {% endfor %}
+    </ul>
 </body>
 </html>
