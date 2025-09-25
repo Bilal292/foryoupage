@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sign up</title>
+</head>
+<body>
+  <h2>Create Account</h2>
+
+  {% if form.errors %}
+      <ul>
+          {% for field in form %}
+              {% for error in field.errors %}
+                  <li>{{ error }}</li> 
+              {% endfor %}
+          {% endfor %}
+      </ul>
+  {% endif %}
+
+  <form method="post"> 
+      {% csrf_token %}
+
+      <label for="id_username">Username:</label>
+      <input type="text" name="username" maxlength="150" autofocus required id="id_username" placeholder="Enter your username">
+      {% if form.username.errors %}
+          {% for error in form.username.errors %} 
+              <p>{{ error }}</p>
+          {% endfor %}
+      {% endif %}
+
+      <label for="id_password1">Password:</label>
+      <input type="password" name="password1" autocomplete="new-password" required id="id_password1" placeholder="Enter your password">
+      <span>- Your password must be at least 8 characters long.</span> 
+      {% if form.password1.errors %}
+          {% for error in form.password1.errors %} 
+              <p>{{ error }}</p> 
+          {% endfor %}
+      {% endif %}
+
+      <label for="id_password2">Confirm Password:</label>
+      <input type="password" name="password2" autocomplete="new-password" required id="id_password2" placeholder="Confirm your password">
+      <span>- Enter the same password as before for verification.</span> 
+      {% if form.password2.errors %}
+          {% for error in form.password2.errors %}
+              <p>{{ error }}</p> 
+          {% endfor %}
+      {% endif %}
+
+      <button type="submit">Create</button> 
+  </form>
+
+  <p>Already Have An Account?</p>
+  <a href="{% url 'login' %}">Login</a>
+
+</body>
+</html>

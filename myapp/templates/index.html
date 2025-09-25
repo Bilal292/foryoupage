@@ -7,6 +7,19 @@
 
 </head>
 <body>
+
+    {% if user.is_authenticated %} 
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+        </li>
+    {% else %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'login' %}">Login</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'register' %}">Register</a>
+        </li>
+    {% endif %}
     <h1>All Links</h1>
     <ul>
         {% for link in links %}
@@ -18,5 +31,7 @@
             <li>No links yet!</li>
         {% endfor %}
     </ul>
+
+
 </body>
 </html>

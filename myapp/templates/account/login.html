@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+</head>
+<body>
+  <h2>login</h2>
+  {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+      {% endfor %}
+  {% endif %}
+
+  <form method="post"> 
+      {% csrf_token %}
+      
+      <label for="id_username">Username:</label>
+      <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}">
+      {% if form.username.errors %}
+          {% for error in form.username.errors %} 
+              <p>{{ error }}</p> 
+          {% endfor %}
+      {% endif %}
+
+      <label for="id_password">Password:</label>
+      <input type="password" name="password" id="id_password">
+      {% if form.password.errors %}
+          {% for error in form.password.errors %} 
+              <p>{{ error }}</p> 
+          {% endfor %}
+      {% endif %}
+
+      <button type="submit">Login</button>
+  </form>
+
+  <p>Don't Have An Account?</p>
+  <a href="{% url 'register' %}">Create Account</a>
+
+</body>
+</html>
