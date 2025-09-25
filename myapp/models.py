@@ -7,7 +7,8 @@ class Link(models.Model):
     url = models.URLField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links", default=1) 
+    platform = models.CharField(max_length=100, blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links", default=1)
 
     def score(self):
         up = self.votes.filter(value=1).count()
