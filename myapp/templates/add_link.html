@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Link{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Add Link</h2>
+
+    <!-- Step 1: Check Link -->
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+        {{ check_form.url.label_tag }}
+        {{ check_form.url }}
+        {% for error in check_form.url.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+        <br>
+        <button type="submit" name="check_link" class="btn btn-primary">Link Check</button>
+    </form>
+
+    <!-- Platform Detected -->
+    {% if platform_detected %}
+        <div class="alert alert-success">
+            Platform detected: <strong>{{ platform_detected }}</strong>
+        </div>
+
+        <!-- Step 2: Post Link -->
+        <form method="post">
+            {% csrf_token %}
+            {{ post_form.title.label_tag }}
+            {{ post_form.title }}
+            {% for error in post_form.title.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+            <br>
+            <button type="submit" name="post_link" class="btn btn-success">Post Link</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}
