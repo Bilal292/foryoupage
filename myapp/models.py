@@ -8,7 +8,6 @@ class Link(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     platform = models.CharField(max_length=100, blank=True, null=True)
-    report_count = models.PositiveIntegerField(default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links", default=1)
 
     def score(self):
@@ -16,6 +15,9 @@ class Link(models.Model):
         down = self.votes.filter(value=-1).count()
         return up - down
 
+    def report_count(self):
+        return self.reports.count()
+    
     def __str__(self):
         return self.title
     
@@ -33,3 +35,14 @@ class Vote(models.Model):
 
     def __str__(self):
         return f"{self.user.username} voted {self.get_value_display()} on {self.link.title}"
+    
+class Report(models.Model):
+    link = models.ForeignKey(Link, related_name="reports", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name="reports", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("link", "user") 
+
+    def __str__(self):
+        return f"{self.user.username} reported {self.link.title}"
