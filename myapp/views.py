@@ -1,10 +1,16 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Link
+from .models import Pin
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
-from .forms import CustomUserCreationForm, LinkCheckForm, LinkPostForm
+from .forms import CustomUserCreationForm
 import re
+
+import random, requests
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .serializers import PinSerializer
 
 
 ALLOWED_PLATFORMS = {
@@ -15,12 +21,96 @@ ALLOWED_PLATFORMS = {
 }
 
 
-def index(request):
-    links = Link.objects.all().order_by("-created_at")
-    return render(request, 'index.html', {"links": links})
+# ----------------------------
+# Utilities
+# ----------------------------
+def get_link_platform(link):
+    platform_detected = None
+    for name, pattern in ALLOWED_PLATFORMS.items():
+        if re.search(pattern, link, re.IGNORECASE):
+            platform_detected = name
+            break
+    
+    return platform_detected
+
+def get_client_ip(request):
+    """Get client IP"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+def ip_to_location(ip):
+    london_lat, london_lon = 51.5074, -0.1278
+
+    if ip in ("127.0.0.1", "::1"):
+        return london_lat, london_lon
+
+    url = f"https://freeipapi.com/api/json/{ip}"
+
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        if 'latitude' in data and 'longitude' in data:
+            return float(data['latitude']), float(data['longitude'])
+        
+    except requests.exceptions.RequestException as e:
+        print(f"IP lookup failed (Request Error): {e}")
+    except Exception as e:
+        print(f"IP lookup failed (General Error): {e}")
+
+    return london_lat, london_lon
+
+def jitter_coordinate(lat, lon, max_offset=0.02):
+    """Scatter pins slightly so they don’t overlap exactly"""
+    jitter_lat = lat + (random.random() - 0.5) * max_offset
+    jitter_lon = lon + (random.random() - 0.5) * max_offset
+    return jitter_lat, jitter_lon
 
 
-# ---- USER ACCOUNT VIEWS ----
+# ----------------------------
+# API Endpoints
+# ----------------------------
+class PinListAPIView(generics.ListAPIView):
+    queryset = Pin.objects.all()
+    serializer_class = PinSerializer
+
+@api_view(['POST'])
+def create_pin(request):
+    link = request.data.get("link")
+    if not link:
+        return Response({"error": "Link is required"}, status=400)
+    
+    link_platform = get_link_platform(link)
+    if not link_platform:
+        return Response({"error": "This platform is not allowed."}, status=400)
+
+    ip = get_client_ip(request)
+    lat, lon = ip_to_location(ip)
+
+    if not lat or not lon:
+        return Response({"error": "Could not determine location"}, status=400)
+
+    jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
+    pin = Pin.objects.create(link=link, latitude=jitter_lat, longitude=jitter_lon, platform=link_platform)
+
+    serializer = PinSerializer(pin)
+    return Response(serializer.data)
+
+# ----------------------------
+# Template View
+# ----------------------------
+def map_view(request):
+    return render(request, "map.html")
+
+
+
+
+# ---- USER ACCOUNT VIEWS - NOT IN USE ----
 def register(request):
     if request.user.is_authenticated:
         return redirect('post_list') 
@@ -55,54 +145,3 @@ def user_login(request):
 def user_logout(request):
     logout(request)
     return redirect('index')
-
-
-# ---- add Link ----
-@login_required
-def add_link(request):
-    platform_detected = None
-    post_form = None
-    check_form = LinkCheckForm()
-
-    if request.method == "POST":
-        if "check_link" in request.POST:
-            check_form = LinkCheckForm(request.POST)
-            if check_form.is_valid():
-                url = check_form.cleaned_data["url"]
-
-                for name, pattern in ALLOWED_PLATFORMS.items():
-                    if re.search(pattern, url, re.IGNORECASE):
-                        platform_detected = name
-                        request.session["pending_link"] = {"url": url, "platform": platform_detected}
-                        break
-
-                if not platform_detected:
-                    check_form.add_error("url", "This platform is not allowed.")
-
-        elif "post_link" in request.POST:
-            post_form = LinkPostForm(request.POST)
-            if post_form.is_valid():
-                pending = request.session.get("pending_link")
-                if pending:
-                    Link.objects.create(
-                        title=post_form.cleaned_data["title"],
-                        url=pending["url"],
-                        platform=pending["platform"],
-                        user=request.user
-                    )
-                    del request.session["pending_link"]
-                    return redirect("index")
-    else:
-        check_form = LinkCheckForm()
-
-    if request.session.get("pending_link"):
-        post_form = LinkPostForm()
-        platform_detected = request.session["pending_link"]["platform"]
-
-    return render(request, "add_link.html", {
-        "check_form": check_form,
-        "post_form": post_form,
-        "platform_detected": platform_detected
-    })
-
-

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>World Pin Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #map { height: 600px; width: 100%; }
+        form { margin: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🌍 World Pin Map</h1>
+
+    <!-- Link submission form -->
+    <form id="pinForm">
+        <input type="url" id="linkInput" placeholder="Paste a TikTok/YouTube link" required />
+        <button type="submit">Drop Pin</button>
+    </form>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <script>
+        // -------------------------------
+        // CSRF Helper
+        // -------------------------------
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // -------------------------------
+        // Initialize map
+        // -------------------------------
+        var map = L.map('map').setView([20, 0], 2);
+
+        // OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Load pins
+        function loadPins() {
+            fetch('/api/pins/')
+                .then(res => res.json())
+                .then(pins => {
+                    pins.forEach(pin => {
+                        let marker = L.marker([pin.latitude, pin.longitude]).addTo(map);
+                        marker.bindPopup(`<a href="${pin.link}" target="_blank">${pin.link}</a>`);
+                    });
+                });
+        }
+        loadPins();
+
+        // Handle form submission
+        document.getElementById('pinForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let link = document.getElementById('linkInput').value;
+
+            fetch('/api/pins/create/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken // ✅ Add CSRF token here
+                },
+                body: JSON.stringify({ link: link })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.latitude && data.longitude) {
+                    let marker = L.marker([data.latitude, data.longitude]).addTo(map);
+                    marker.bindPopup(`<a href="${data.link}" target="_blank">${data.link}</a>`);
+                } else {
+                    alert(data.error || "Error dropping pin");
+                }
+            });
+
+            document.getElementById('linkInput').value = "";
+        });
+    </script>
+</body>
+</html>

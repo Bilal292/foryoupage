@@ -1,14 +1,9 @@
 from django.contrib import admin
-from .models import Link, Vote
+from .models import Pin
 
-@admin.register(Link)
-class LinkAdmin(admin.ModelAdmin):
-    list_display = ("title", "url", "created_at", "is_active", "score")
-    search_fields = ("title", "url")
+@admin.register(Pin)
+class PinAdmin(admin.ModelAdmin):
+    list_display = ("title", "link", "created_at", "is_active")
+    search_fields = ("title", "link")
     list_filter = ("is_active", "created_at")
     
-
-@admin.register(Vote)
-class VoteAdmin(admin.ModelAdmin):
-    list_display = ("link", "user", "value")
-    list_filter = ("value", "link")
