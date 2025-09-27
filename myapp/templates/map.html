@@ -7,25 +7,53 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
         #map { height: 600px; width: 100%; }
-        form { margin: 20px; }
+        button { padding: 8px 12px; margin: 10px; cursor: pointer; }
+        #popupForm {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            width: 300px;
+        }
+        #popupForm input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        #popupForm button {
+            margin-top: 10px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
     <h1>🌍 World Pin Map</h1>
 
-    <!-- Link submission form -->
-    <form id="pinForm">
-        <input type="url" id="linkInput" placeholder="Paste a TikTok/YouTube link" required />
-        <button type="submit">Drop Pin</button>
-    </form>
+    <button id="openFormBtn">Post Link</button>
 
-    <!-- Map -->
+    <div id="popupForm">
+        <h3>Post a Link</h3>
+        <input type="url" id="linkInput" placeholder="Paste TikTok/YouTube/Instagram link" required />
+        <button id="checkUrlBtn">Check URL</button>
+        
+        <div id="titleSection" style="display:none;">
+            <input type="text" id="titleInput" placeholder="Enter title" required />
+            <button id="postBtn">Post</button>
+        </div>
+
+        <button id="closeFormBtn">Close</button>
+    </div>
+
     <div id="map"></div>
 
     <script>
-        // -------------------------------
-        // CSRF Helper
-        // -------------------------------
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -42,54 +70,124 @@
         }
         const csrftoken = getCookie('csrftoken');
 
-        // -------------------------------
-        // Initialize map
-        // -------------------------------
         var map = L.map('map').setView([20, 0], 2);
 
-        // OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Load pins
+        const ZOOM_THRESHOLD = 10;
+        let allMarkers = [];
+
+        function updateMarkersVisibility() {
+            let zoom = map.getZoom();
+            allMarkers.forEach(marker => {
+                if (zoom >= ZOOM_THRESHOLD) {
+                    if (!map.hasLayer(marker)) marker.addTo(map);
+                } else {
+                    if (map.hasLayer(marker)) map.removeLayer(marker);
+                }
+            });
+        }
+
         function loadPins() {
-            fetch('/api/pins/')
+            if (map.getZoom() < ZOOM_THRESHOLD) {
+                allMarkers.forEach(marker => map.removeLayer(marker));
+                allMarkers = [];
+                return; // skip loading pins when zoomed out
+            }
+
+            let bounds = map.getBounds();
+            let sw = bounds.getSouthWest();
+            let ne = bounds.getNorthEast();
+
+            fetch(`/api/pins/in_bounds/?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
                 .then(res => res.json())
                 .then(pins => {
+                    allMarkers.forEach(marker => map.removeLayer(marker));
+                    allMarkers = [];
+
                     pins.forEach(pin => {
-                        let marker = L.marker([pin.latitude, pin.longitude]).addTo(map);
-                        marker.bindPopup(`<a href="${pin.link}" target="_blank">${pin.link}</a>`);
+                        let marker = L.marker([pin.latitude, pin.longitude]);
+                        marker.bindPopup(
+                            `<b>${pin.title}</b><br><a href="${pin.link}" target="_blank">${pin.link}</a>`
+                        );
+                        allMarkers.push(marker);
                     });
+                    updateMarkersVisibility();
                 });
         }
-        loadPins();
 
-        // Handle form submission
-        document.getElementById('pinForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            let link = document.getElementById('linkInput').value;
+        map.whenReady(loadPins);
+        map.on('moveend', loadPins);
 
-            fetch('/api/pins/create/', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken // ✅ Add CSRF token here
+        const openFormBtn = document.getElementById("openFormBtn");
+        const popupForm = document.getElementById("popupForm");
+        const closeFormBtn = document.getElementById("closeFormBtn");
+
+        openFormBtn.onclick = () => popupForm.style.display = "block";
+        closeFormBtn.onclick = () => {
+            popupForm.style.display = "none";
+            resetForm();
+        };
+
+        function resetForm() {
+            document.getElementById("linkInput").value = "";
+            document.getElementById("titleInput").value = "";
+            document.getElementById("titleSection").style.display = "none";
+        }
+
+        document.getElementById("checkUrlBtn").addEventListener("click", function() {
+            let link = document.getElementById("linkInput").value;
+
+            fetch("/api/pins/create/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrftoken
                 },
-                body: JSON.stringify({ link: link })
+                body: JSON.stringify({ link: link, check_only: true })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.platform) {
+                    document.getElementById("titleSection").style.display = "block";
+                } else {
+                    alert(data.error || "❌ Invalid link");
+                }
+            });
+        });
+
+        document.getElementById("postBtn").addEventListener("click", function() {
+            let link = document.getElementById("linkInput").value;
+            let title = document.getElementById("titleInput").value;
+
+            fetch("/api/pins/create/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrftoken
+                },
+                body: JSON.stringify({ link: link, title: title })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.latitude && data.longitude) {
-                    let marker = L.marker([data.latitude, data.longitude]).addTo(map);
-                    marker.bindPopup(`<a href="${data.link}" target="_blank">${data.link}</a>`);
+                    let marker = L.marker([data.latitude, data.longitude]);
+                    marker.bindPopup(
+                        `<b>${data.title}</b><br><a href="${data.link}" target="_blank">${data.link}</a>`
+                    );
+                    allMarkers.push(marker);
+                    updateMarkersVisibility();
+                    alert("✅ Pin posted!");
+                    popupForm.style.display = "none";
+                    resetForm();
                 } else {
-                    alert(data.error || "Error dropping pin");
+                    alert(data.error || "❌ Error posting pin");
                 }
             });
-
-            document.getElementById('linkInput').value = "";
         });
     </script>
 </body>
 </html>
+

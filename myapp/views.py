@@ -5,7 +5,6 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
 import re
-
 import random, requests
 from rest_framework import generics
 from rest_framework.response import Response
@@ -48,6 +47,7 @@ def ip_to_location(ip):
     if ip in ("127.0.0.1", "::1"):
         return london_lat, london_lon
 
+    # 60 requests/minute (~2.59M/month)
     url = f"https://freeipapi.com/api/json/{ip}"
 
     try:
@@ -79,15 +79,47 @@ class PinListAPIView(generics.ListAPIView):
     queryset = Pin.objects.all()
     serializer_class = PinSerializer
 
+@api_view(['GET'])
+def pins_in_bounds(request):
+    try:
+        sw_lat = float(request.GET.get("sw_lat"))
+        sw_lng = float(request.GET.get("sw_lng"))
+        ne_lat = float(request.GET.get("ne_lat"))
+        ne_lng = float(request.GET.get("ne_lng"))
+    except (TypeError, ValueError):
+        return Response({"error": "Invalid bounds"}, status=400)
+
+    pins = Pin.objects.filter(
+        latitude__gte=sw_lat,
+        latitude__lte=ne_lat,
+        longitude__gte=sw_lng,
+        longitude__lte=ne_lng,
+        is_active=True
+    )
+
+    serializer = PinSerializer(pins, many=True)
+    return Response(serializer.data)
+
 @api_view(['POST'])
 def create_pin(request):
     link = request.data.get("link")
+    title = request.data.get("title")
+    check_only = request.data.get("check_only", False)
+
     if not link:
         return Response({"error": "Link is required"}, status=400)
-    
+
     link_platform = get_link_platform(link)
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
+
+    # Step 1: Just check URL validity
+    if check_only:
+        return Response({"message": "Valid link", "platform": link_platform})
+
+    # Step 2: Actually create pin
+    if not title:
+        return Response({"error": "Title is required"}, status=400)
 
     ip = get_client_ip(request)
     lat, lon = ip_to_location(ip)
@@ -96,7 +128,13 @@ def create_pin(request):
         return Response({"error": "Could not determine location"}, status=400)
 
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
-    pin = Pin.objects.create(link=link, latitude=jitter_lat, longitude=jitter_lon, platform=link_platform)
+    pin = Pin.objects.create(
+        link=link,
+        title=title,
+        latitude=jitter_lat,
+        longitude=jitter_lon,
+        platform=link_platform
+    )
 
     serializer = PinSerializer(pin)
     return Response(serializer.data)
