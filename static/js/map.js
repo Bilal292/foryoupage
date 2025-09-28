@@ -108,9 +108,15 @@ function loadPins() {
         });
 }
 
+let loadPinsTimeout;
+function debouncedLoadPins() {
+    clearTimeout(loadPinsTimeout);
+    loadPinsTimeout = setTimeout(loadPins, 300);
+}
+
 // Map event listeners
 map.whenReady(loadPins);
-map.on('moveend', loadPins);
+map.on('moveend', debouncedLoadPins);
 
 // UI functionality
 document.addEventListener('DOMContentLoaded', function() {
