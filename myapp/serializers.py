@@ -4,5 +4,5 @@ from .models import Pin
 class PinSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pin
-        fields = ['id', 'title', 'link', 'latitude', 'longitude', 'created_at', 'is_active', 'platform']
+        fields = ['id', 'title', 'latitude', 'longitude', 'platform']
         

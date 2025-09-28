@@ -10,6 +10,7 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .serializers import PinSerializer
+from django.core.cache import cache
 
 
 ALLOWED_PLATFORMS = {
@@ -46,6 +47,12 @@ def ip_to_location(ip):
 
     if ip in ("127.0.0.1", "::1"):
         return london_lat, london_lon
+    
+    # Check cache first
+    cache_key = f"ip_location_{ip}"
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        return cached_result
 
     # 60 requests/minute (~2.59M/month)
     url = f"https://freeipapi.com/api/json/{ip}"
@@ -56,7 +63,10 @@ def ip_to_location(ip):
         data = response.json()
 
         if 'latitude' in data and 'longitude' in data:
-            return float(data['latitude']), float(data['longitude'])
+            result = (float(data['latitude']), float(data['longitude']))
+             # Cache for 24 hours
+            cache.set(cache_key, result, 86400)
+            return result
         
     except requests.exceptions.RequestException as e:
         print(f"IP lookup failed (Request Error): {e}")
