@@ -1,4 +1,4 @@
-
+// Get CSRF token for Django
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -15,43 +15,47 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
+// Initialize map
 var map = L.map('map').setView([20, 0], 2);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-const ZOOM_THRESHOLD = 10;
-let allMarkers = [];
-
-function updateMarkersVisibility() {
-    let zoom = map.getZoom();
-    allMarkers.forEach(marker => {
-        if (zoom >= ZOOM_THRESHOLD) {
-            if (!map.hasLayer(marker)) marker.addTo(map);
-        } else {
-            if (map.hasLayer(marker)) map.removeLayer(marker);
-        }
-    });
-}
+// Create a marker cluster group
+var markers = L.markerClusterGroup({
+    chunkedLoading: true,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true
+});
+map.addLayer(markers);
 
 // Function to create custom popup content
 function createPopupContent(pin) {
-    // Determine platform icon
-    let platformIcon = 'fas fa-link';
+    // Determine platform classes
     let platformClass = 'default';
+    let buttonClass = 'default';
+    let platformName = 'Unknown Platform';
     
     if (pin.platform) {
         const platformLower = pin.platform.toLowerCase();
         if (platformLower === 'tiktok') {
-            platformIcon = 'fab fa-tiktok';
             platformClass = 'tiktok';
-        } else if (platformLower === 'youtube') {
-            platformIcon = 'fab fa-youtube';
+            buttonClass = 'tiktok';
+            platformName = 'TikTok';
+        } else if (platformLower === 'youtube shorts') {
             platformClass = 'youtube';
-        } else if (platformLower === 'instagram') {
-            platformIcon = 'fab fa-instagram';
+            buttonClass = 'youtube';
+            platformName = 'YouTube Shorts';
+        } else if (platformLower === 'instagram reels') {
             platformClass = 'instagram';
+            buttonClass = 'instagram';
+            platformName = 'Instagram Reels';
+        } else if (platformLower === 'x (twitter)') {
+            platformClass = 'twitter';
+            buttonClass = 'twitter';
+            platformName = 'X (Twitter)';
         }
     }
     
@@ -62,17 +66,17 @@ function createPopupContent(pin) {
     return `
         <div class="custom-popup">
             <div class="popup-header">
-                <div class="platform-icon ${platformClass}">
-                    <i class="${platformIcon}"></i>
-                </div>
                 <div class="popup-title">${pin.title}</div>
+                <div class="platform-badge ${platformClass}">${platformName}</div>
             </div>
             <div class="popup-content">
                 <div class="popup-link">${pin.link}</div>
-                <div class="popup-date">Posted: ${formattedDate}</div>
+                <div class="popup-date">
+                    <i class="far fa-clock"></i> ${formattedDate}
+                </div>
             </div>
             <div class="popup-actions">
-                <a href="${pin.link}" target="_blank" class="popup-button">
+                <a href="${pin.link}" target="_blank" class="popup-button ${buttonClass}">
                     <i class="fas fa-external-link-alt"></i> Open Link
                 </a>
             </div>
@@ -80,13 +84,8 @@ function createPopupContent(pin) {
     `;
 }
 
+// Load pins from the server
 function loadPins() {
-    if (map.getZoom() < ZOOM_THRESHOLD) {
-        allMarkers.forEach(marker => map.removeLayer(marker));
-        allMarkers = [];
-        return; // skip loading pins when zoomed out
-    }
-
     let bounds = map.getBounds();
     let sw = bounds.getSouthWest();
     let ne = bounds.getNorthEast();
@@ -94,112 +93,152 @@ function loadPins() {
     fetch(`/api/pins/in_bounds/?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
         .then(res => res.json())
         .then(pins => {
-            allMarkers.forEach(marker => map.removeLayer(marker));
-            allMarkers = [];
-
+            // Clear existing markers
+            markers.clearLayers();
+            
+            // Add new markers to the cluster group
             pins.forEach(pin => {
                 let marker = L.marker([pin.latitude, pin.longitude]);
                 marker.bindPopup(createPopupContent(pin), {
                     maxWidth: 300,
                     className: 'custom-popup-container'
                 });
-                allMarkers.push(marker);
+                markers.addLayer(marker);
             });
-            updateMarkersVisibility();
         });
 }
 
+// Map event listeners
 map.whenReady(loadPins);
 map.on('moveend', loadPins);
 
-// UI interactions
-const openFormBtn = document.getElementById("openFormBtn");
-const popupForm = document.getElementById("popupForm");
-const closeFormBtn = document.getElementById("closeFormBtn");
-const modalOverlay = document.getElementById("modalOverlay");
-const toast = document.getElementById("toast");
-
-openFormBtn.onclick = () => {
-    popupForm.style.display = "block";
-    modalOverlay.style.display = "block";
-};
-
-modalOverlay.onclick = () => {
-    popupForm.style.display = "none";
-    modalOverlay.style.display = "none";
-    resetForm();
-};
-
-closeFormBtn.onclick = () => {
-    popupForm.style.display = "none";
-    modalOverlay.style.display = "none";
-    resetForm();
-};
-
-function resetForm() {
-    document.getElementById("linkInput").value = "";
-    document.getElementById("titleInput").value = "";
-    document.getElementById("titleSection").style.display = "none";
-}
-
-function showToast(message, type = 'success') {
-    toast.textContent = message;
-    toast.className = 'toast show ' + type;
+// UI functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap modal
+    const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
     
-    setTimeout(() => {
-        toast.className = 'toast';
-    }, 3000);
-}
-
-document.getElementById("checkUrlBtn").addEventListener("click", function() {
-    let link = document.getElementById("linkInput").value;
-
-    fetch("/api/pins/create/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken
-        },
-        body: JSON.stringify({ link: link, check_only: true })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.platform) {
-            document.getElementById("titleSection").style.display = "block";
-        } else {
-            showToast(data.error || "❌ Invalid link", "error");
-        }
+    // UI elements
+    const openFormBtn = document.getElementById("openFormBtn");
+    const pinForm = document.getElementById("pinForm");
+    const titleSection = document.getElementById("titleSection");
+    const toastEl = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    // Open modal when FAB is clicked
+    openFormBtn.addEventListener('click', () => {
+        pinModal.show();
     });
-});
-
-document.getElementById("postBtn").addEventListener("click", function() {
-    let link = document.getElementById("linkInput").value;
-    let title = document.getElementById("titleInput").value;
-
-    fetch("/api/pins/create/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken
-        },
-        body: JSON.stringify({ link: link, title: title })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.latitude && data.longitude) {
-            let marker = L.marker([data.latitude, data.longitude]);
-            marker.bindPopup(createPopupContent(data), {
-                maxWidth: 300,
-                className: 'custom-popup-container'
-            });
-            allMarkers.push(marker);
-            updateMarkersVisibility();
-            showToast("✅ Pin posted successfully!");
-            popupForm.style.display = "none";
-            modalOverlay.style.display = "none";
-            resetForm();
+    
+    // Reset form when modal is hidden
+    document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
+        resetForm();
+    });
+    
+    function resetForm() {
+        document.getElementById("linkInput").value = "";
+        document.getElementById("titleInput").value = "";
+        titleSection.style.display = "none";
+        pinForm.classList.remove('was-validated');
+    }
+    
+    function showToast(message, type = 'success') {
+        toastMessage.textContent = message;
+        toastEl.className = 'toast';
+        
+        // Set background color based on type
+        if (type === 'success') {
+            toastEl.classList.add('text-bg-success');
+        } else if (type === 'error') {
+            toastEl.classList.add('text-bg-danger');
         } else {
-            showToast(data.error || "❌ Error posting pin", "error");
+            toastEl.classList.add('text-bg-primary');
         }
+        
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+    
+    // Check URL button click
+    document.getElementById("checkUrlBtn").addEventListener("click", function() {
+        const linkInput = document.getElementById("linkInput");
+        
+        if (!linkInput.value) {
+            linkInput.classList.add('is-invalid');
+            return;
+        }
+        
+        linkInput.classList.remove('is-invalid');
+        
+        fetch("/api/pins/create/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify({ link: linkInput.value, check_only: true })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.platform) {
+                titleSection.style.display = "block";
+            } else {
+                showToast(data.error || "❌ Invalid link", "error");
+            }
+        })
+        .catch(error => {
+            showToast("❌ Network error. Please try again.", "error");
+            console.error('Error:', error);
+        });
+    });
+    
+    // Post button click
+    document.getElementById("postBtn").addEventListener("click", function() {
+        const linkInput = document.getElementById("linkInput");
+        const titleInput = document.getElementById("titleInput");
+        
+        if (!linkInput.value || !titleInput.value) {
+            if (!linkInput.value) linkInput.classList.add('is-invalid');
+            if (!titleInput.value) titleInput.classList.add('is-invalid');
+            return;
+        }
+        
+        linkInput.classList.remove('is-invalid');
+        titleInput.classList.remove('is-invalid');
+        
+        fetch("/api/pins/create/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify({ 
+                link: linkInput.value, 
+                title: titleInput.value 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.latitude && data.longitude) {
+                let marker = L.marker([data.latitude, data.longitude]);
+                marker.bindPopup(createPopupContent(data), {
+                    maxWidth: 300,
+                    className: 'custom-popup-container'
+                });
+                markers.addLayer(marker);
+                
+                // Center map on new pin
+                map.setView([data.latitude, data.longitude], 10);
+                
+                showToast("✅ Pin posted successfully!");
+                pinModal.hide();
+                resetForm();
+            } else {
+                showToast(data.error || "❌ Error posting pin", "error");
+            }
+        })
+        .catch(error => {
+            showToast("❌ Network error. Please try again.", "error");
+            console.error('Error:', error);
+        });
     });
 });
