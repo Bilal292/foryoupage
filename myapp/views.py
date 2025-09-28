@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .serializers import PinSerializer
 from django.core.cache import cache
+from django_ratelimit.decorators import ratelimit
 
 
 ALLOWED_PLATFORMS = {
@@ -33,7 +34,7 @@ def get_link_platform(link):
     
     return platform_detected
 
-def get_client_ip(request):
+def get_client_ip(_, request):
     """Get client IP"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -111,10 +112,18 @@ def pins_in_bounds(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
+@ratelimit(key=get_client_ip, rate='10/h', block=False) 
 def create_pin(request):
+    if getattr(request, 'limited', False):
+        return Response({"error": "Too many requests. Please try again later."}, status=429)
+    
     link = request.data.get("link")
     title = request.data.get("title")
     check_only = request.data.get("check_only", False)
+
+    # Client-side coordinates if provided
+    client_lat = request.data.get("latitude")
+    client_lon = request.data.get("longitude")
 
     if not link:
         return Response({"error": "Link is required"}, status=400)
@@ -131,8 +140,13 @@ def create_pin(request):
     if not title:
         return Response({"error": "Title is required"}, status=400)
 
-    ip = get_client_ip(request)
-    lat, lon = ip_to_location(ip)
+    
+    # Use client-side coordinates if available, otherwise fall back to IP-based
+    if client_lat and client_lon:
+        lat, lon = float(client_lat), float(client_lon)
+    else:
+        ip = get_client_ip("bruh", request)
+        lat, lon = ip_to_location(ip)
 
     if not lat or not lon:
         return Response({"error": "Could not determine location"}, status=400)

@@ -196,9 +196,27 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
         });
     });
+
+    function getClientLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation is not supported by this browser.'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                position => resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                }),
+                error => reject(error),
+                { timeout: 5000 }
+            );
+        });
+    }
     
     // Post button click
-    document.getElementById("postBtn").addEventListener("click", function() {
+    document.getElementById("postBtn").addEventListener("click", async function() {
         const linkInput = document.getElementById("linkInput");
         const titleInput = document.getElementById("titleInput");
         
@@ -210,6 +228,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         linkInput.classList.remove('is-invalid');
         titleInput.classList.remove('is-invalid');
+
+        let locationData = {};
+        try {
+            const position = await getClientLocation();
+            locationData = position;
+        } catch (error) {
+            console.log('Could not get client location, falling back to IP-based:', error);
+        }
         
         fetch("/api/pins/create/", {
             method: "POST",
@@ -219,7 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ 
                 link: linkInput.value, 
-                title: titleInput.value 
+                title: titleInput.value,
+                ...locationData
             })
         })
         .then(res => res.json())
