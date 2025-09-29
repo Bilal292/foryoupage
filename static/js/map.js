@@ -71,7 +71,6 @@ function createPopupContent(pin) {
     return `
         <div class="custom-popup">
             <div class="popup-header">
-                <div class="popup-title">${pin.title}</div>
                 <div class="platform-badge ${platformClass}">${platformName}</div>
             </div>
             <div class="popup-content">
@@ -184,7 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function resetForm() {
         document.getElementById("linkInput").value = "";
-        document.getElementById("titleInput").value = "";
         titleSection.style.display = "none";
         pinForm.classList.remove('was-validated');
     }
@@ -230,19 +228,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.platform) {
                 titleSection.style.display = "block";
             } else {
-                showToast(data.error || "❌ Invalid link", "error");
+                // showToast(data.error || "❌ Invalid link", "error");
+                showToast("❌ Invalid link", "error");
             }
         })
         .catch(error => {
             showToast("❌ Network error. Please try again.", "error");
-            console.error('Error:', error);
+            // console.error('Error:', error);
         });
     });
 
     function getClientLocation() {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                reject(new Error('Geolocation is not supported by this browser.'));
+                // reject(new Error('Geolocation is not supported by this browser.'));
                 return;
             }
             
@@ -260,23 +259,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Post button click
     document.getElementById("postBtn").addEventListener("click", async function() {
         const linkInput = document.getElementById("linkInput");
-        const titleInput = document.getElementById("titleInput");
         
-        if (!linkInput.value || !titleInput.value) {
+        if (!linkInput.value) {
             if (!linkInput.value) linkInput.classList.add('is-invalid');
-            if (!titleInput.value) titleInput.classList.add('is-invalid');
             return;
         }
         
         linkInput.classList.remove('is-invalid');
-        titleInput.classList.remove('is-invalid');
 
         let locationData = {};
         try {
             const position = await getClientLocation();
             locationData = position;
         } catch (error) {
-            console.log('Could not get client location, falling back to IP-based:', error);
+            // console.log('Could not get client location, falling back to IP-based:', error);
         }
         
         fetch("/api/pins/create/", {
@@ -287,7 +283,6 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ 
                 link: linkInput.value, 
-                title: titleInput.value,
                 ...locationData
             })
         })
@@ -308,12 +303,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 pinModal.hide();
                 resetForm();
             } else {
-                showToast(data.error || "❌ Error posting pin", "error");
+                // showToast(data.error || "❌ Error posting pin", "error");
+                showToast("❌ Error posting pin", "error");
             }
         })
         .catch(error => {
             showToast("❌ Network error. Please try again.", "error");
-            console.error('Error:', error);
+            // console.error('Error:', error);
         });
     });
 });

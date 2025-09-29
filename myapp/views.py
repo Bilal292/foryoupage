@@ -119,7 +119,6 @@ def create_pin(request):
         return Response({"error": "Too many posts. Please try again later."}, status=429)
     
     link = request.data.get("link")
-    title = request.data.get("title")
     check_only = request.data.get("check_only", False)
 
     # Client-side coordinates if provided
@@ -133,15 +132,9 @@ def create_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # Step 1: Just check URL validity
     if check_only:
         return Response({"message": "Valid link", "platform": link_platform})
 
-    # Step 2: Actually create pin
-    if not title:
-        return Response({"error": "Title is required"}, status=400)
-
-    
     # Use client-side coordinates if available, otherwise fall back to IP-based
     if client_lat and client_lon:
         lat, lon = float(client_lat), float(client_lon)
@@ -155,7 +148,6 @@ def create_pin(request):
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
     pin = Pin.objects.create(
         link=link,
-        title=title,
         latitude=jitter_lat,
         longitude=jitter_lon,
         platform=link_platform

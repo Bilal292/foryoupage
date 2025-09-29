@@ -3,7 +3,6 @@ from django.contrib.auth.models import User
 
 
 class Pin(models.Model):
-    title = models.CharField(max_length=200, default="A link")
     link = models.URLField()
 
     latitude = models.FloatField()
