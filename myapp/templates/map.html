@@ -58,6 +58,58 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="agreementModal" tabindex="-1" aria-labelledby="agreementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agreementModalLabel">Terms and Posting Rules</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="agreement-content">
+                        <h6>By posting on this platform, you agree to the following:</h6>
+                        
+                        <div class="mt-3">
+                            <h6>Allowed Platforms:</h6>
+                            <ul>
+                                <li>TikTok (tiktok.com)</li>
+                                <li>YouTube Shorts (youtube.com)</li>
+                                <li>Instagram Reels (instagram.com)</li>
+                                <li>X/Twitter (x.com or twitter.com)</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h6>Content Restrictions:</h6>
+                            <ul>
+                                <li><strong>NSFW content is strictly forbidden</strong></li>
+                                <li>No hate speech or discriminatory content</li>
+                                <li>No harassment or bullying</li>
+                                <li>No illegal activities or content</li>
+                                <li>No spam or misleading links</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <p>You must also agree to our <a href="{% url 'terms_and_conditions' %}" target="_blank">Terms and Conditions</a> and <a href="{% url 'privacy_policy' %}" target="_blank">Privacy Policy</a>.</p>
+                        </div>
+                        
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="agreementCheck">
+                            <label class="form-check-label" for="agreementCheck">
+                                I have read and agree to all terms, conditions, and posting rules
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="agreeAndContinueBtn" disabled>Agree and Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Toast Container -->
     <div class="toast-container">

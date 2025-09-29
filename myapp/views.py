@@ -12,12 +12,13 @@ from rest_framework.decorators import api_view
 from .serializers import PinSerializer
 from django.core.cache import cache
 from django_ratelimit.decorators import ratelimit
+from datetime import datetime
 
 
 ALLOWED_PLATFORMS = {
     "TikTok": r"tiktok\.com",
-    "YouTube Shorts": r"youtube\.com\/shorts",
-    "Instagram Reels": r"instagram\.com\/reel",
+    "YouTube Shorts": r"youtube\.com",
+    "Instagram Reels": r"instagram\.com",
     "X (Twitter)": r"x\.com|twitter\.com",
 }
 
@@ -112,10 +113,10 @@ def pins_in_bounds(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
-@ratelimit(key=get_client_ip, rate='10/h', block=False) 
+@ratelimit(key=get_client_ip, rate='10/m', block=False) 
 def create_pin(request):
     if getattr(request, 'limited', False):
-        return Response({"error": "Too many requests. Please try again later."}, status=429)
+        return Response({"error": "Too many posts. Please try again later."}, status=429)
     
     link = request.data.get("link")
     title = request.data.get("title")
@@ -168,6 +169,23 @@ def create_pin(request):
 # ----------------------------
 def map_view(request):
     return render(request, "map.html")
+
+
+def privacy_policy(request):
+    context = {
+        'current_date': datetime.now().strftime("%B %d, %Y")
+    }
+    return render(request, 'privacy_policy.html', context)
+
+
+def terms_and_conditions(request):
+    context = {
+        'current_date': datetime.now().strftime("%B %d, %Y")
+    }
+    return render(request, 'terms_and_conditions.html', context)
+
+
+
 
 
 

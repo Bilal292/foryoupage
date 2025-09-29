@@ -16,7 +16,12 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 // Initialize map
-var map = L.map('map').setView([20, 0], 2);
+var map = L.map('map', {
+    minZoom: 4,  // Prevents zooming out beyond this level
+    maxZoom: 18,  // maximum zoom level too
+    maxBounds: [[-90, -180], [90, 180]],  // Set world boundaries
+    maxBoundsViscosity: 1.0  // Prevents bouncing when hitting the edge
+}).setView([50, 0], 4);  // Start at zoom level 4 
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
@@ -122,6 +127,7 @@ map.on('moveend', debouncedLoadPins);
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap modal
     const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+    const agreementModal = new bootstrap.Modal(document.getElementById('agreementModal'));
     
     // UI elements
     const openFormBtn = document.getElementById("openFormBtn");
@@ -129,15 +135,51 @@ document.addEventListener('DOMContentLoaded', function() {
     const titleSection = document.getElementById("titleSection");
     const toastEl = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
-    
+    const agreementCheck = document.getElementById('agreementCheck');
+    const agreeAndContinueBtn = document.getElementById('agreeAndContinueBtn');
+
+    // Track if user has already agreed in this session
+    let hasAgreedThisSession = sessionStorage.getItem('hasAgreedToTerms') === 'true';
+
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {
-        pinModal.show();
+        if (hasAgreedThisSession) {
+            // If already agreed in this session, show pin modal directly
+            pinModal.show();
+        } else {
+            // Otherwise, show agreement modal first
+            agreementModal.show();
+        }
+    });
+
+    // Enable/disable "Agree and Continue" button based on checkbox
+    agreementCheck.addEventListener('change', function() {
+        agreeAndContinueBtn.disabled = !this.checked;
+    });
+
+    
+    // Handle "Agree and Continue" button click
+    agreeAndContinueBtn.addEventListener('click', function() {
+        if (agreementCheck.checked) {
+            // Remember agreement for this session
+            sessionStorage.setItem('hasAgreedToTerms', 'true');
+            hasAgreedThisSession = true;
+            
+            // Hide agreement modal and show pin modal
+            agreementModal.hide();
+            pinModal.show();
+        }
     });
     
     // Reset form when modal is hidden
     document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
         resetForm();
+    });
+
+    // Reset agreement check when agreement modal is hidden
+    document.getElementById('agreementModal').addEventListener('hidden.bs.modal', () => {
+        agreementCheck.checked = false;
+        agreeAndContinueBtn.disabled = true;
     });
     
     function resetForm() {

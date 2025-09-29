@@ -267,6 +267,31 @@ body {
     margin-right: 8px;
 }
 
+/* Agreement modal styles */
+.agreement-content {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.agreement-content h6 {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.agreement-content ul {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.agreement-content li {
+    margin-bottom: 5px;
+}
+
+.agreement-content strong {
+    color: #d32f2f;
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
     .fab {
@@ -297,5 +322,9 @@ body {
     .popup-button {
         padding: 8px 14px;
         font-size: 13px;
+    }
+    
+    .agreement-content {
+        max-height: 50vh;
     }
 }
