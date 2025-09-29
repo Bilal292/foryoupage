@@ -13,6 +13,7 @@ from .serializers import PinSerializer
 from django.core.cache import cache
 from django_ratelimit.decorators import ratelimit
 from datetime import datetime
+from django.contrib.admin.views.decorators import staff_member_required
 
 
 ALLOWED_PLATFORMS = {
@@ -156,6 +157,61 @@ def create_pin(request):
     serializer = PinSerializer(pin)
     return Response(serializer.data)
 
+
+@staff_member_required
+@api_view(['POST'])
+def create_secret_pin(request):
+    if getattr(request, 'limited', False):
+        return Response({"error": "Too many posts. Please try again later."}, status=429)
+    
+    link = request.data.get("link")
+    if not link:
+        return Response({"error": "Link is required"}, status=400)
+
+    link_platform = get_link_platform(link)
+    if not link_platform:
+        return Response({"error": "This platform is not allowed."}, status=400)
+
+    # Bounding boxes for the countries
+    countries = {
+        "UK": {
+            "min_lat": 49.9, "max_lat": 60.9,
+            "min_lon": -8.0, "max_lon": 1.8
+        },
+        "USA": {
+            "min_lat": 24.396308, "max_lat": 49.384358,
+            "min_lon": -125.0, "max_lon": -66.93457
+        },
+        "Australia": {
+            "min_lat": -43.634597, "max_lat": -10.668186,
+            "min_lon": 113.338953, "max_lon": 153.569469
+        },
+        "Canada": {
+            "min_lat": 41.676555, "max_lat": 83.113877,
+            "min_lon": -141.0, "max_lon": -52.636291
+        }
+    }
+
+    # Randomly select a country
+    country_name = random.choice(list(countries.keys()))
+    country_bounds = countries[country_name]
+
+    # Generate random coordinates within the country
+    lat = random.uniform(country_bounds["min_lat"], country_bounds["max_lat"])
+    lon = random.uniform(country_bounds["min_lon"], country_bounds["max_lon"])
+
+    jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
+
+    pin = Pin.objects.create(
+        link=link,
+        latitude=jitter_lat,
+        longitude=jitter_lon,
+        platform=link_platform
+    )
+
+    serializer = PinSerializer(pin)
+    return Response(serializer.data)
+
 # ----------------------------
 # Template View
 # ----------------------------
@@ -175,6 +231,10 @@ def terms_and_conditions(request):
         'current_date': datetime.now().strftime("%B %d, %Y")
     }
     return render(request, 'terms_and_conditions.html', context)
+
+@login_required(login_url="map")
+def secret_map_view(request):
+    return render(request, "secret_map.html")
 
 
 
