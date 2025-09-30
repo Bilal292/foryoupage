@@ -17,11 +17,11 @@ const csrftoken = getCookie('csrftoken');
 
 // Initialize map
 var map = L.map('map', {
-    minZoom: 4,  // Prevents zooming out beyond this level
-    maxZoom: 18,  // maximum zoom level too
-    maxBounds: [[-90, -180], [90, 180]],  // Set world boundaries
-    maxBoundsViscosity: 1.0  // Prevents bouncing when hitting the edge
-}).setView([50, 0], 4);  // Start at zoom level 4 
+    minZoom: 4,
+    maxZoom: 18,
+    maxBounds: [[-90, -180], [90, 180]],
+    maxBoundsViscosity: 1.0
+}).setView([50, 0], 4);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
@@ -35,6 +35,11 @@ var markers = L.markerClusterGroup({
     zoomToBoundsOnClick: true
 });
 map.addLayer(markers);
+
+// Track the currently open popup and map movement
+var currentPopup = null;
+var isAdjustingForPopup = false;
+var userInteracted = false;
 
 // Function to create custom popup content
 function createPopupContent(pin) {
@@ -52,7 +57,7 @@ function createPopupContent(pin) {
         } else if (platformLower === 'youtube shorts') {
             platformClass = 'youtube';
             buttonClass = 'youtube';
-            platformName = 'YouTube Shorts';
+            platformName = 'YouTube'; 
         } else if (platformLower === 'instagram reels') {
             platformClass = 'instagram';
             buttonClass = 'instagram';
@@ -64,9 +69,77 @@ function createPopupContent(pin) {
         }
     }
     
-    // Format date
-    const createdDate = new Date(pin.created_at);
-    const formattedDate = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    // Generate embed HTML for supported platforms
+    let embedHtml = '';
+    if (pin.platform) {
+        const platformLower = pin.platform.toLowerCase();
+        
+        if (platformLower === 'tiktok') {
+            // Extract video ID from any TikTok URL format
+            // Handles: tiktok.com/@username/video/123456, tiktok.com/t/123456, tiktok.com/video/123456
+            const tiktokId = pin.link.match(/tiktok\.com\/(?:@[^/]+\/)?(?:video\/|t\/)?(\d+)/);
+            if (tiktokId) {
+                embedHtml = `
+                    <div class="embed-container tiktok-embed">
+                        <iframe 
+                            src="https://www.tiktok.com/embed/v2/${tiktokId[1]}" 
+                            width="100%" 
+                            height="400" 
+                            style="border:none;"
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                `;
+            }
+        } else if (platformLower === 'youtube shorts') {
+            // Extract video ID from any YouTube URL format
+            // Handles: youtube.com/watch?v=ID, youtube.com/shorts/ID, youtu.be/ID, youtube.com/embed/ID
+            let youtubeId = null;
+            
+            // Try standard watch URL
+            if (!youtubeId) {
+                const match = pin.link.match(/youtube\.com\/watch\?v=([^&]+)/);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try shorts URL
+            if (!youtubeId) {
+                const match = pin.link.match(/youtube\.com\/shorts\/([^/?&]+)/);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try short URL (youtu.be)
+            if (!youtubeId) {
+                const match = pin.link.match(/youtu\.be\/([^/?&]+)/);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try embed URL
+            if (!youtubeId) {
+                const match = pin.link.match(/youtube\.com\/embed\/([^/?&]+)/);
+                if (match) youtubeId = match[1];
+            }
+            
+            if (youtubeId) {
+                embedHtml = `
+                    <div class="embed-container youtube-embed">
+                        <iframe 
+                            src="https://www.youtube.com/embed/${youtubeId}" 
+                            width="100%" 
+                            height="200" 
+                            style="border:none;"
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // If no embed available, show the link
+    if (!embedHtml) {
+        embedHtml = `<div class="popup-link">${pin.link}</div>`;
+    }
     
     return `
         <div class="custom-popup">
@@ -74,10 +147,7 @@ function createPopupContent(pin) {
                 <div class="platform-badge ${platformClass}">${platformName}</div>
             </div>
             <div class="popup-content">
-                <div class="popup-link">${pin.link}</div>
-                <div class="popup-date">
-                    <i class="far fa-clock"></i> ${formattedDate}
-                </div>
+                ${embedHtml}
             </div>
             <div class="popup-actions">
                 <a href="${pin.link}" target="_blank" class="popup-button ${buttonClass}">
@@ -88,8 +158,30 @@ function createPopupContent(pin) {
     `;
 }
 
+// Store pin data in markers to identify them later
+function createMarkerWithPin(pin) {
+    let marker = L.marker([pin.latitude, pin.longitude]);
+    marker.pinData = pin; // Store pin data for later identification
+    marker.bindPopup(createPopupContent(pin), {
+        maxWidth: 300,
+        className: 'custom-popup-container',
+        autoClose: false,  
+        closeButton: true 
+    });
+    return marker;
+}
+
 // Load pins from the server
 function loadPins() {
+    // Check if there's an open popup and remember its pin data
+    let openPopupPin = null;
+    if (currentPopup && currentPopup.isOpen()) {
+        const sourceMarker = currentPopup._source;
+        if (sourceMarker && sourceMarker.pinData) {
+            openPopupPin = sourceMarker.pinData;
+        }
+    }
+
     let bounds = map.getBounds();
     let sw = bounds.getSouthWest();
     let ne = bounds.getNorthEast();
@@ -102,25 +194,69 @@ function loadPins() {
             
             // Add new markers to the cluster group
             pins.forEach(pin => {
-                let marker = L.marker([pin.latitude, pin.longitude]);
-                marker.bindPopup(createPopupContent(pin), {
-                    maxWidth: 300,
-                    className: 'custom-popup-container'
-                });
+                const marker = createMarkerWithPin(pin);
                 markers.addLayer(marker);
+
+                // Only reopen the popup if:
+                // 1. This marker corresponds to the open popup pin
+                // 2. AND the map movement was not initiated by the user (userInteracted is false)
+                if (openPopupPin && pin.id === openPopupPin.id && !userInteracted) {
+                    marker.openPopup();
+                }
             });
         });
 }
 
-let loadPinsTimeout;
-function debouncedLoadPins() {
-    clearTimeout(loadPinsTimeout);
-    loadPinsTimeout = setTimeout(loadPins, 300);
-}
+// Handle popup events
+map.on('popupopen', function(e) {
+    currentPopup = e.popup;
+    isAdjustingForPopup = true;
+    userInteracted = false;
+    
+    // Prevent clicks inside the popup from closing it
+    setTimeout(function() {
+        const popupElement = e.popup.getElement();
+        if (popupElement) {
+            const popupContent = popupElement.querySelector('.leaflet-popup-content');
+            if (popupContent) {
+                popupContent.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                });
+            }
+        }
+    }, 10);
+});
 
-// Map event listeners
+map.on('popupclose', function(e) {
+    if (currentPopup === e.popup) {
+        currentPopup = null;
+    }
+});
+
+// Handle map events
+map.on('movestart', function() {
+    userInteracted = true;
+});
+
+map.on('moveend', function() {
+    // If the map moved due to popup opening, don't close the popup
+    if (isAdjustingForPopup) {
+        isAdjustingForPopup = false;
+        return;
+    }
+    
+    // If the user manually moved the map, close any open popup
+    if (userInteracted && currentPopup && currentPopup.isOpen()) {
+        currentPopup.close();
+        currentPopup = null;
+    }
+    
+    // Always reload pins when the map moves
+    loadPins();
+});
+
+// Initial load
 map.whenReady(loadPins);
-map.on('moveend', debouncedLoadPins);
 
 // UI functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -228,20 +364,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.platform) {
                 titleSection.style.display = "block";
             } else {
-                // showToast(data.error || "❌ Invalid link", "error");
                 showToast("❌ Invalid link", "error");
             }
         })
         .catch(error => {
             showToast("❌ Network error. Please try again.", "error");
-            // console.error('Error:', error);
         });
     });
 
     function getClientLocation() {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                // reject(new Error('Geolocation is not supported by this browser.'));
                 return;
             }
             
@@ -289,27 +422,27 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => res.json())
         .then(data => {
             if (data.latitude && data.longitude) {
-                let marker = L.marker([data.latitude, data.longitude]);
-                marker.bindPopup(createPopupContent(data), {
-                    maxWidth: 300,
-                    className: 'custom-popup-container'
-                });
+                const marker = createMarkerWithPin(data);
                 markers.addLayer(marker);
                 
-                // Center map on new pin
-                map.setView([data.latitude, data.longitude], 10);
+                // Open popup for the new marker
+                marker.openPopup();
+                
+                // Center map on new pin without triggering a reload
+                map.panTo([data.latitude, data.longitude], {
+                    animate: true,
+                    duration: 1
+                });
                 
                 showToast("✅ Pin posted successfully!");
                 pinModal.hide();
                 resetForm();
             } else {
-                // showToast(data.error || "❌ Error posting pin", "error");
                 showToast("❌ Error posting pin", "error");
             }
         })
         .catch(error => {
             showToast("❌ Network error. Please try again.", "error");
-            // console.error('Error:', error);
         });
     });
 });
