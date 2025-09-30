@@ -172,34 +172,35 @@ def create_secret_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # Bounding boxes for the countries
-    countries = {
-        "UK": {
-            "min_lat": 49.9, "max_lat": 60.9,
-            "min_lon": -8.0, "max_lon": 1.8
-        },
-        "USA": {
-            "min_lat": 24.396308, "max_lat": 49.384358,
-            "min_lon": -125.0, "max_lon": -66.93457
-        },
-        "Australia": {
-            "min_lat": -43.634597, "max_lat": -10.668186,
-            "min_lon": 113.338953, "max_lon": 153.569469
-        },
-        "Canada": {
-            "min_lat": 41.676555, "max_lat": 83.113877,
-            "min_lon": -141.0, "max_lon": -52.636291
-        }
-    }
+    # Regions with higher population density (for weighted random selection)
+    regions = [
+        {"name": "North America", "weight": 7, "min_lat": 15, "max_lat": 75, "min_lon": -170, "max_lon": -50},
+        {"name": "Europe", "weight": 6, "min_lat": 35, "max_lat": 70, "min_lon": -10, "max_lon": 40},
+        {"name": "Asia", "weight": 10, "min_lat": -10, "max_lat": 55, "min_lon": 40, "max_lon": 150},
+        {"name": "Africa", "weight": 4, "min_lat": -35, "max_lat": 35, "min_lon": -20, "max_lon": 50},
+        {"name": "South America", "weight": 3, "min_lat": -55, "max_lat": 15, "min_lon": -90, "max_lon": -35},
+        {"name": "Oceania", "weight": 2, "min_lat": -50, "max_lat": 0, "min_lon": 110, "max_lon": 180},
+    ]
+    
+    # Calculate total weight
+    total_weight = sum(region["weight"] for region in regions)
+    
+    # Select a region based on weight
+    r = random.uniform(0, total_weight)
+    cumulative_weight = 0
+    selected_region = None
+    
+    for region in regions:
+        cumulative_weight += region["weight"]
+        if r <= cumulative_weight:
+            selected_region = region
+            break
+    
+    # Generate random coordinates within the selected region
+    lat = random.uniform(selected_region["min_lat"], selected_region["max_lat"])
+    lon = random.uniform(selected_region["min_lon"], selected_region["max_lon"])
 
-    # Randomly select a country
-    country_name = random.choice(list(countries.keys()))
-    country_bounds = countries[country_name]
-
-    # Generate random coordinates within the country
-    lat = random.uniform(country_bounds["min_lat"], country_bounds["max_lat"])
-    lon = random.uniform(country_bounds["min_lon"], country_bounds["max_lon"])
-
+    # Apply jitter to avoid exact overlaps
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
 
     pin = Pin.objects.create(
