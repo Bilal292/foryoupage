@@ -57,22 +57,17 @@ function createPopupContent(pin) {
         } else if (platformLower === 'youtube shorts') {
             platformClass = 'youtube';
             buttonClass = 'youtube';
-            platformName = 'YouTube Shorts';
+            platformName = 'YouTube';
         } else if (platformLower === 'instagram reels') {
             platformClass = 'instagram';
             buttonClass = 'instagram';
-            platformName = 'Instagram Reels';
+            platformName = 'Instagram';
         } else if (platformLower === 'x (twitter)') {
             platformClass = 'twitter';
             buttonClass = 'twitter';
             platformName = 'X (Twitter)';
         }
     }
-
-    // Format date
-    const createdDate = new Date(pin.created_at);
-    const formattedDate = createdDate.toLocaleDateString() + ' ' + 
-                         createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
     return `
         <div class="custom-popup">
@@ -82,7 +77,7 @@ function createPopupContent(pin) {
             <div class="popup-content">
                 <div class="popup-link">${pin.link}</div>
                 <div class="popup-date">
-                    <i class="far fa-clock"></i> ${formattedDate}
+                    Open Link In ${platformName}
                 </div>
             </div>
             <div class="popup-actions">
