@@ -47,7 +47,7 @@ function createPopupContent(pin) {
     let platformClass = 'default';
     let buttonClass = 'default';
     let platformName = 'Unknown Platform';
-    
+
     if (pin.platform) {
         const platformLower = pin.platform.toLowerCase();
         if (platformLower === 'tiktok') {
@@ -57,7 +57,7 @@ function createPopupContent(pin) {
         } else if (platformLower === 'youtube shorts') {
             platformClass = 'youtube';
             buttonClass = 'youtube';
-            platformName = 'YouTube'; 
+            platformName = 'YouTube Shorts';
         } else if (platformLower === 'instagram reels') {
             platformClass = 'instagram';
             buttonClass = 'instagram';
@@ -68,137 +68,22 @@ function createPopupContent(pin) {
             platformName = 'X (Twitter)';
         }
     }
-    
-    // Generate embed HTML for supported platforms
-    let embedHtml = '';
-    if (pin.platform) {
-        const platformLower = pin.platform.toLowerCase();
-        
-        if (platformLower === 'tiktok') {
-            // Extract video ID from any TikTok URL format
-            // Handles: tiktok.com/@username/video/123456, tiktok.com/t/123456, tiktok.com/video/123456
-            // Also handles: vm.tiktok.com/ZNdGAt2J4/
-            let videoId = null;
-            
-            // Try standard format with numeric ID
-            const standardMatch = pin.link.match(/tiktok\.com\/(?:@[^/]+\/)?(?:video\/|t\/)?(\d+)/);
-            if (standardMatch) {
-                videoId = standardMatch[1];
-            } 
-            // Try short URL format with alphanumeric code
-            else {
-                const shortMatch = pin.link.match(/vm\.tiktok\.com\/([A-Za-z0-9]+)/);
-                if (shortMatch) {
-                    videoId = shortMatch[1];
-                }
-            }
-            
-            if (videoId) {
-                embedHtml = `
-                    <div class="embed-container tiktok-embed">
-                        <iframe 
-                            src="https://www.tiktok.com/embed/v2/${videoId}" 
-                            width="100%" 
-                            height="400" 
-                            style="border:none;"
-                            allowfullscreen
-                            onload="this.style.display='block'"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                        </iframe>
-                        <div class="embed-fallback" style="display: none;">
-                            <div class="embed-fallback-message">
-                                <p>Click the "Open Link" button below to view on TikTok</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        } else if (platformLower === 'youtube shorts') {
-            // Extract video ID from any YouTube URL format
-            // Handles: youtube.com/watch?v=ID, youtube.com/shorts/ID, youtu.be/ID, youtube.com/embed/ID
-            let youtubeId = null;
-            
-            // Try standard watch URL
-            if (!youtubeId) {
-                const match = pin.link.match(/youtube\.com\/watch\?v=([^&]+)/);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try shorts URL
-            if (!youtubeId) {
-                const match = pin.link.match(/youtube\.com\/shorts\/([^/?&]+)/);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try short URL (youtu.be)
-            if (!youtubeId) {
-                const match = pin.link.match(/youtu\.be\/([^/?&]+)/);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try embed URL
-            if (!youtubeId) {
-                const match = pin.link.match(/youtube\.com\/embed\/([^/?&]+)/);
-                if (match) youtubeId = match[1];
-            }
-            
-            if (youtubeId) {
-                embedHtml = `
-                    <div class="embed-container youtube-embed">
-                        <iframe 
-                            src="https://www.youtube.com/embed/${youtubeId}" 
-                            width="100%" 
-                            height="200" 
-                            style="border:none;"
-                            allowfullscreen
-                            onload="this.style.display='block'"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                        </iframe>
-                        <div class="embed-fallback" style="display: none;">
-                            <div class="embed-fallback-message">
-                                <p>Click the "Open Link" button below to view on YouTube</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        } else if (platformLower === 'instagram reels') {
-            // Instagram Reels fallback message
-            embedHtml = `
-                <div class="embed-container instagram-embed">
-                    <div class="embed-fallback">
-                        <div class="embed-fallback-message">
-                            <p>Click the "Open Link" button below to view on Instagram</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (platformLower === 'x (twitter)') {
-            // X (Twitter) fallback message
-            embedHtml = `
-                <div class="embed-container twitter-embed">
-                    <div class="embed-fallback">
-                        <div class="embed-fallback-message">
-                            <p>Click the "Open Link" button below to view on X</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    // If no embed available, show the link
-    if (!embedHtml) {
-        embedHtml = `<div class="popup-link">${pin.link}</div>`;
-    }
-    
+
+    // Format date
+    const createdDate = new Date(pin.created_at);
+    const formattedDate = createdDate.toLocaleDateString() + ' ' + 
+                         createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
     return `
         <div class="custom-popup">
             <div class="popup-header">
                 <div class="platform-badge ${platformClass}">${platformName}</div>
             </div>
             <div class="popup-content">
-                ${embedHtml}
+                <div class="popup-link">${pin.link}</div>
+                <div class="popup-date">
+                    <i class="far fa-clock"></i> ${formattedDate}
+                </div>
             </div>
             <div class="popup-actions">
                 <a href="${pin.link}" target="_blank" class="popup-button ${buttonClass}">
