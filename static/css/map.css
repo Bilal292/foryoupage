@@ -292,44 +292,73 @@ body {
     color: #d32f2f;
 }
 
-/* Embed containers */
+/* Embed container styles */
 .embed-container {
     position: relative;
-    margin-bottom: 15px;
     border-radius: 8px;
     overflow: hidden;
+    margin-bottom: 15px;
 }
 
 .tiktok-embed {
-    padding-bottom: 177.78%; /* 9:16 aspect ratio */
-    height: 0;
+    height: 400px;
 }
 
 .youtube-embed {
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
+    height: 200px;
 }
 
-.embed-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
+.instagram-embed {
+    height: 400px;
+}
+
+.twitter-embed {
+    height: 300px;
+}
+
+/* Embed fallback styles */
+.embed-fallback {
     width: 100%;
     height: 100%;
-    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
 }
 
-.leaflet-popup-content-wrapper {
-    pointer-events: none;
+.embed-fallback-message {
+    color: #495057;
 }
 
-.leaflet-popup-content {
-    pointer-events: auto;
+.embed-fallback-message i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #6c757d;
 }
 
-.leaflet-popup-close-button {
-    pointer-events: auto;
-    z-index: 1000;
+.embed-fallback-message p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Platform-specific colors for fallback icons */
+.instagram-embed .embed-fallback-message i {
+    color: #E4405F;
+}
+
+.twitter-embed .embed-fallback-message i {
+    color: #1DA1F2;
+}
+
+.tiktok-embed .embed-fallback-message i {
+    color: #000000;
+}
+
+.youtube-embed .embed-fallback-message i {
+    color: #FF0000;
 }
 
 /* Mobile adjustments */

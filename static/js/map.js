@@ -77,17 +77,39 @@ function createPopupContent(pin) {
         if (platformLower === 'tiktok') {
             // Extract video ID from any TikTok URL format
             // Handles: tiktok.com/@username/video/123456, tiktok.com/t/123456, tiktok.com/video/123456
-            const tiktokId = pin.link.match(/tiktok\.com\/(?:@[^/]+\/)?(?:video\/|t\/)?(\d+)/);
-            if (tiktokId) {
+            // Also handles: vm.tiktok.com/ZNdGAt2J4/
+            let videoId = null;
+            
+            // Try standard format with numeric ID
+            const standardMatch = pin.link.match(/tiktok\.com\/(?:@[^/]+\/)?(?:video\/|t\/)?(\d+)/);
+            if (standardMatch) {
+                videoId = standardMatch[1];
+            } 
+            // Try short URL format with alphanumeric code
+            else {
+                const shortMatch = pin.link.match(/vm\.tiktok\.com\/([A-Za-z0-9]+)/);
+                if (shortMatch) {
+                    videoId = shortMatch[1];
+                }
+            }
+            
+            if (videoId) {
                 embedHtml = `
                     <div class="embed-container tiktok-embed">
                         <iframe 
-                            src="https://www.tiktok.com/embed/v2/${tiktokId[1]}" 
+                            src="https://www.tiktok.com/embed/v2/${videoId}" 
                             width="100%" 
                             height="400" 
                             style="border:none;"
-                            allowfullscreen>
+                            allowfullscreen
+                            onload="this.style.display='block'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
                         </iframe>
+                        <div class="embed-fallback" style="display: none;">
+                            <div class="embed-fallback-message">
+                                <p>Click the "Open Link" button below to view on TikTok</p>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -128,11 +150,40 @@ function createPopupContent(pin) {
                             width="100%" 
                             height="200" 
                             style="border:none;"
-                            allowfullscreen>
+                            allowfullscreen
+                            onload="this.style.display='block'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
                         </iframe>
+                        <div class="embed-fallback" style="display: none;">
+                            <div class="embed-fallback-message">
+                                <p>Click the "Open Link" button below to view on YouTube</p>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
+        } else if (platformLower === 'instagram reels') {
+            // Instagram Reels fallback message
+            embedHtml = `
+                <div class="embed-container instagram-embed">
+                    <div class="embed-fallback">
+                        <div class="embed-fallback-message">
+                            <p>Click the "Open Link" button below to view on Instagram</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (platformLower === 'x (twitter)') {
+            // X (Twitter) fallback message
+            embedHtml = `
+                <div class="embed-container twitter-embed">
+                    <div class="embed-fallback">
+                        <div class="embed-fallback-message">
+                            <p>Click the "Open Link" button below to view on X</p>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
     }
     
