@@ -53,25 +53,6 @@ def resolve_tiktok_url(url):
     except requests.exceptions.RequestException:
         return url
 
-def fix_tiktok_urls():
-    """
-    Check for and fix any shortened TikTok URLs in the database
-    """
-    # Get all TikTok pins that might have shortened URLs
-    tiktok_pins = Pin.objects.filter(platform='TikTok')
-    
-    for pin in tiktok_pins:
-        # Check if it's a shortened URL
-        if 'vm.tiktok.com' in pin.link or '/t/' in pin.link:
-            try:
-                resolved_url = resolve_tiktok_url(pin.link)
-                if resolved_url != pin.link:
-                    pin.link = resolved_url
-                    pin.save()
-                    print(f"Updated TikTok URL for pin {pin.id}: {resolved_url}")
-            except Exception as e:
-                print(f"Error resolving TikTok URL for pin {pin.id}: {str(e)}")
-
 def get_client_ip(_, request):
     """Get client IP"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -260,10 +241,7 @@ def create_secret_pin(request):
 # ----------------------------
 # Template View
 # ----------------------------
-def map_view(request):
-    # Check and fix any shortened TikTok URLs in the database
-    fix_tiktok_urls()
-    
+def map_view(request):    
     return render(request, "map.html")
 
 
