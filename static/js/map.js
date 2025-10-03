@@ -47,7 +47,7 @@ function createPopupContent(pin) {
     let platformClass = 'default';
     let buttonClass = 'default';
     let platformName = 'Unknown Platform';
-
+    
     if (pin.platform) {
         const platformLower = pin.platform.toLowerCase();
         if (platformLower === 'tiktok') {
@@ -68,17 +68,124 @@ function createPopupContent(pin) {
             platformName = 'X (Twitter)';
         }
     }
-
+    
+    // Format date
+    const createdDate = new Date(pin.created_at);
+    const formattedDate = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    // Generate embed HTML for supported platforms
+    let embedHtml = '';
+    if (pin.platform) {
+        const platformLower = pin.platform.toLowerCase();
+        
+        if (platformLower === 'youtube shorts') {
+            // Extract video ID from any YouTube URL format
+            // Handles: youtube.com/watch?v=ID, youtube.com/shorts/ID, youtu.be/ID, youtube.com/embed/ID
+            // Also handles URLs with or without www, http/https, and additional parameters
+            let youtubeId = null;
+            
+            // Try standard watch URL (with or without www, http/https)
+            if (!youtubeId) {
+                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/i);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try shorts URL (with or without www, http/https)
+            if (!youtubeId) {
+                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^/?&]+)/i);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try short URL (youtu.be) (with or without www, http/https)
+            if (!youtubeId) {
+                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^/?&]+)/i);
+                if (match) youtubeId = match[1];
+            }
+            
+            // Try embed URL (with or without www, http/https)
+            if (!youtubeId) {
+                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^/?&]+)/i);
+                if (match) youtubeId = match[1];
+            }
+            
+            if (youtubeId) {
+                embedHtml = `
+                    <div class="embed-container youtube-embed">
+                        <iframe 
+                            src="https://www.youtube.com/embed/${youtubeId}" 
+                            width="100%" 
+                            height="400" 
+                            style="border:none;"
+                            allowfullscreen
+                            onload="this.style.display='block'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                        </iframe>
+                        <div class="embed-fallback" style="display: none;">
+                            <div class="embed-fallback-message">
+                                <i class="fab fa-youtube"></i>
+                                <p>Unable to embed this YouTube video</p>
+                                <p>Click the "Open Link" button below to view on YouTube</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else if (platformLower === 'tiktok') {
+            // Extract video ID from TikTok URL
+            // Handles both full URLs (tiktok.com/@username/video/ID) and shortened URLs (vm.tiktok.com/ID)
+            let tiktokId = null;
+            
+            // Try standard TikTok URL format
+            let match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\/]+\/video\/([^/?&]+)/i);
+            if (match) {
+                tiktokId = match[1];
+            }
+            
+            // Try shortened TikTok URL formats (vm.tiktok.com, tiktok.com/t/)
+            if (!tiktokId) {
+                match = pin.link.match(/(?:https?:\/\/)?(?:vm\.|www\.)?tiktok\.com\/(?:t\/|)([A-Za-z0-9]+)/i);
+                if (match) {
+                    tiktokId = match[1];
+                }
+            }
+            
+            if (tiktokId) {
+                embedHtml = `
+                    <div class="embed-container tiktok-embed">
+                        <iframe 
+                            src="https://www.tiktok.com/embed/v2/${tiktokId}" 
+                            width="100%" 
+                            height="400" 
+                            style="border:none; max-width: 100%;"
+                            allowfullscreen
+                            onload="this.style.display='block'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                        </iframe>
+                        <div class="embed-fallback" style="display: none;">
+                            <div class="embed-fallback-message">
+                                <i class="fab fa-tiktok"></i>
+                                <p>Unable to embed this TikTok video</p>
+                                <p>Click the "Open Link" button below to view on TikTok</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // If no embed available, show the link
+    if (!embedHtml) {
+        embedHtml = `<div class="popup-link">${pin.link}</div>`;
+    }
+    
     return `
         <div class="custom-popup">
             <div class="popup-header">
                 <div class="platform-badge ${platformClass}">${platformName}</div>
             </div>
             <div class="popup-content">
-                <div class="popup-link">${pin.link}</div>
-                <div class="popup-date">
-                    Open Link In ${platformName}
-                </div>
+                ${embedHtml}
             </div>
             <div class="popup-actions">
                 <a href="${pin.link}" target="_blank" class="popup-button ${buttonClass}">

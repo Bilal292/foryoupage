@@ -36,6 +36,42 @@ def get_link_platform(link):
     
     return platform_detected
 
+def resolve_tiktok_url(url):
+    """
+    Resolve shortened TikTok URLs to their full URLs
+    Returns the full URL or the original URL if resolution fails
+    """
+    try:
+        # Make a HEAD request to follow redirects
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        final_url = response.url
+        
+        # Verify it's a TikTok URL
+        if 'tiktok.com' in final_url:
+            return final_url
+        return url
+    except requests.exceptions.RequestException:
+        return url
+
+def fix_tiktok_urls():
+    """
+    Check for and fix any shortened TikTok URLs in the database
+    """
+    # Get all TikTok pins that might have shortened URLs
+    tiktok_pins = Pin.objects.filter(platform='TikTok')
+    
+    for pin in tiktok_pins:
+        # Check if it's a shortened URL
+        if 'vm.tiktok.com' in pin.link or '/t/' in pin.link:
+            try:
+                resolved_url = resolve_tiktok_url(pin.link)
+                if resolved_url != pin.link:
+                    pin.link = resolved_url
+                    pin.save()
+                    print(f"Updated TikTok URL for pin {pin.id}: {resolved_url}")
+            except Exception as e:
+                print(f"Error resolving TikTok URL for pin {pin.id}: {str(e)}")
+
 def get_client_ip(_, request):
     """Get client IP"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -79,7 +115,7 @@ def ip_to_location(ip):
     return london_lat, london_lon
 
 def jitter_coordinate(lat, lon, max_offset=0.02):
-    """Scatter pins slightly so they don’t overlap exactly"""
+    """Scatter pins slightly so they don't overlap exactly"""
     jitter_lat = lat + (random.random() - 0.5) * max_offset
     jitter_lon = lon + (random.random() - 0.5) * max_offset
     return jitter_lat, jitter_lon
@@ -133,6 +169,10 @@ def create_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
+    # Resolve TikTok URLs to full URLs
+    if link_platform == "TikTok":
+        link = resolve_tiktok_url(link)
+
     if check_only:
         return Response({"message": "Valid link", "platform": link_platform})
 
@@ -171,6 +211,10 @@ def create_secret_pin(request):
     link_platform = get_link_platform(link)
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
+
+    # Resolve TikTok URLs to full URLs
+    if link_platform == "TikTok":
+        link = resolve_tiktok_url(link)
 
     # Regions with higher population density (for weighted random selection)
     regions = [
@@ -217,6 +261,9 @@ def create_secret_pin(request):
 # Template View
 # ----------------------------
 def map_view(request):
+    # Check and fix any shortened TikTok URLs in the database
+    fix_tiktok_urls()
+    
     return render(request, "map.html")
 
 

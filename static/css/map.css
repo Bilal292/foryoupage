@@ -316,6 +316,30 @@ body {
     height: 300px;
 }
 
+/* Embed container styles */
+.embed-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.youtube-embed {
+    height: 400px;
+}
+
+.tiktok-embed {
+    height: 400px;
+}
+
+.instagram-embed {
+    height: 400px;
+}
+
+.twitter-embed {
+    height: 300px;
+}
+
 /* Embed fallback styles */
 .embed-fallback {
     width: 100%;
@@ -345,20 +369,20 @@ body {
 }
 
 /* Platform-specific colors for fallback icons */
-.instagram-embed .embed-fallback-message i {
-    color: #E4405F;
-}
-
-.twitter-embed .embed-fallback-message i {
-    color: #1DA1F2;
+.youtube-embed .embed-fallback-message i {
+    color: #FF0000;
 }
 
 .tiktok-embed .embed-fallback-message i {
     color: #000000;
 }
 
-.youtube-embed .embed-fallback-message i {
-    color: #FF0000;
+.instagram-embed .embed-fallback-message i {
+    color: #E4405F;
+}
+
+.twitter-embed .embed-fallback-message i {
+    color: #1DA1F2;
 }
 
 /* Mobile adjustments */
