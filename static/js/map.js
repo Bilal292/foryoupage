@@ -155,7 +155,7 @@ function createPopupContent(pin) {
                         <iframe 
                             src="https://www.tiktok.com/embed/v2/${tiktokId}" 
                             width="100%" 
-                            height="400" 
+                            height="100%" 
                             style="border:none; max-width: 100%;"
                             allowfullscreen
                             onload="this.style.display='block'"
@@ -201,7 +201,7 @@ function createMarkerWithPin(pin) {
     let marker = L.marker([pin.latitude, pin.longitude]);
     marker.pinData = pin; // Store pin data for later identification
     marker.bindPopup(createPopupContent(pin), {
-        maxWidth: 300,
+        maxWidth: 350,
         className: 'custom-popup-container',
         autoClose: false,  
         closeButton: true 

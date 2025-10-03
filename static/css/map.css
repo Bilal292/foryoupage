@@ -103,11 +103,13 @@ body {
 .leaflet-popup-content-wrapper {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 350px !important;
 }
 
 .leaflet-popup-content {
     margin: 0;
     min-width: 250px;
+    width: auto !important;
 }
 
 .leaflet-popup-tip {
@@ -322,6 +324,7 @@ body {
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 15px;
+    width: 100%;
 }
 
 .youtube-embed {
@@ -329,7 +332,9 @@ body {
 }
 
 .tiktok-embed {
-    height: 400px;
+    height: 560px; 
+    max-width: 320px;
+    margin: 0 auto; 
 }
 
 .instagram-embed {
@@ -383,6 +388,16 @@ body {
 
 .twitter-embed .embed-fallback-message i {
     color: #1DA1F2;
+}
+
+/* Custom popup styles */
+.custom-popup {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 15px;
+    min-width: 250px;
+    /* Allow wider popups */
+    max-width: 350px;
+    width: auto !important;
 }
 
 /* Mobile adjustments */
