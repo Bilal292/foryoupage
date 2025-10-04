@@ -14,19 +14,34 @@ from django.core.cache import cache
 from django_ratelimit.decorators import ratelimit
 from datetime import datetime
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
 
 
 ALLOWED_PLATFORMS = {
-    "TikTok": r"tiktok\.com",
-    "YouTube Shorts": r"youtube\.com",
-    "Instagram Reels": r"instagram\.com",
-    "X (Twitter)": r"x\.com|twitter\.com",
+    "TikTok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
+    "YouTube Shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
 }
 
 
 # ----------------------------
 # Utilities
 # ----------------------------
+
+def validate_and_sanitize_url(url):
+    """Validate and sanitize URL to prevent security issues"""
+    validator = URLValidator()
+    try:
+        validator(url)
+    except ValidationError:
+        return False
+    
+    # Additional security checks
+    if not url.startswith(('http://', 'https://')):
+        return False
+    
+    return True
+
 def get_link_platform(link):
     platform_detected = None
     for name, pattern in ALLOWED_PLATFORMS.items():
@@ -145,6 +160,10 @@ def create_pin(request):
 
     if not link:
         return Response({"error": "Link is required"}, status=400)
+    
+    # Validate URL format
+    if not validate_and_sanitize_url(link):
+        return Response({"error": "Invalid URL format"}, status=400)
 
     link_platform = get_link_platform(link)
     if not link_platform:
