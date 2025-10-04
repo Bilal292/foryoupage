@@ -103,7 +103,7 @@ body {
 .leaflet-popup-content-wrapper {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    max-width: 350px !important;
+    max-width: none !important;
 }
 
 .leaflet-popup-content {
@@ -308,10 +308,14 @@ body {
 }
 
 .tiktok-embed {
-    height: 80vh;
+    width: 100% !important; 
+    max-width: 100% !important; 
+    min-width: auto !important; 
+    height: 80vh; 
     max-height: 560px; 
-    margin: 0 auto;
+    margin: 0;
 }
+
 
 .instagram-embed {
     height: 400px;
@@ -375,6 +379,7 @@ body {
 /* TikTok container for better responsiveness */
 .tiktok-container {
     position: relative;
+    width: 100%;
     border-radius: 8px;
     margin-bottom: 15px;
 }
@@ -421,7 +426,7 @@ body {
     }
 
     .leaflet-popup-content-wrapper {
-        max-width: 300px !important;
+        max-width: 90vw !important;
     }
 }
 
@@ -432,6 +437,6 @@ body {
     }
 
     .leaflet-popup-content-wrapper {
-        max-width: 250px !important;
+        max-width: 90vw !important;
     }
 }

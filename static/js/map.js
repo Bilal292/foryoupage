@@ -129,8 +129,7 @@ function createPopupContent(pin) {
                     <blockquote 
                         class="tiktok-embed" 
                         cite="${url}" 
-                        data-video-id="${videoId}" 
-                        style="max-width: 605px;">
+                        data-video-id="${videoId}">
                         <section>
                             <a href="${url}" target="_blank">View on TikTok</a>
                         </section>
@@ -167,16 +166,20 @@ function createPopupContent(pin) {
 // Store pin data in markers to identify them later
 function createMarkerWithPin(pin) {
     let marker = L.marker([pin.latitude, pin.longitude]);
-    marker.pinData = pin; // Store pin data for later identification
-    marker.bindPopup(createPopupContent(pin), {
-        maxWidth: 350,
+    marker.pinData = pin;
+    
+    // Set popup options based on platform
+    let popupOptions = {
+        maxWidth: pin.platform && pin.platform.toLowerCase() === 'tiktok' ? 500 : 350,
         className: 'custom-popup-container',
         autoClose: false,  
         closeButton: true,
-        autoPanPaddingTopLeft: [20, 80], 
+        autoPanPaddingTopLeft: [20, 80],
         autoPanPaddingBottomRight: [20, 80],
-        keepInView: true  
-    });
+        keepInView: true
+    };
+    
+    marker.bindPopup(createPopupContent(pin), popupOptions);
     return marker;
 }
 
@@ -275,7 +278,7 @@ map.on('popupopen', function(e) {
             }
         }
     }, 10);
-    
+
     adjustPopupForMobile();
 });
 
