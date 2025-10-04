@@ -141,21 +141,16 @@ function createPopupContent(pin) {
                 tiktokId = match[1];
             }
             
-            // Try shortened TikTok URL formats (vm.tiktok.com, tiktok.com/t/)
-            if (!tiktokId) {
-                match = pin.link.match(/(?:https?:\/\/)?(?:vm\.|www\.)?tiktok\.com\/(?:t\/|)([A-Za-z0-9]+)/i);
-                if (match) {
-                    tiktokId = match[1];
-                }
-            }
-            
             if (tiktokId) {
+                // Check if it's a photo URL
+                const isPhoto = pin.link.includes('/photo/');
+                
                 embedHtml = `
                     <div class="embed-container tiktok-embed">
                         <iframe 
                             src="https://www.tiktok.com/embed/v2/${tiktokId}" 
                             width="100%" 
-                            height="100%" 
+                            height="${isPhoto ? '600' : '100%'}" 
                             style="border:none; max-width: 100%;"
                             allowfullscreen
                             onload="this.style.display='block'"
@@ -164,7 +159,7 @@ function createPopupContent(pin) {
                         <div class="embed-fallback" style="display: none;">
                             <div class="embed-fallback-message">
                                 <i class="fab fa-tiktok"></i>
-                                <p>Unable to embed this TikTok video</p>
+                                <p>Unable to embed this TikTok ${isPhoto ? 'photo' : 'video'}</p>
                                 <p>Click the "Open Link" button below to view on TikTok</p>
                             </div>
                         </div>
@@ -402,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.platform) {
                 titleSection.style.display = "block";
             } else {
-                showToast("❌ Invalid link", "error");
+                showToast(`❌ ${data.error}`, "error");
             }
         })
         .catch(error => {

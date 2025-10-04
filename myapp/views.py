@@ -28,6 +28,11 @@ ALLOWED_PLATFORMS = {
 # Utilities
 # ----------------------------
 
+def is_tiktok_photo_url(url):
+    """Check if a URL is a TikTok photo URL"""
+    photo_pattern = r"(?:www\.)?tiktok\.com/@[^/]+/photo/"
+    return bool(re.search(photo_pattern, url, re.IGNORECASE))
+
 def validate_and_sanitize_url(url):
     """Validate and sanitize URL to prevent security issues"""
     validator = URLValidator()
@@ -172,6 +177,9 @@ def create_pin(request):
     # Resolve TikTok URLs to full URLs
     if link_platform == "TikTok":
         link = resolve_tiktok_url(link)
+        # Double-check after resolution
+        if is_tiktok_photo_url(link):
+            return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     if check_only:
         return Response({"message": "Valid link", "platform": link_platform})
