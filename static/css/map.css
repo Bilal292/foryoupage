@@ -332,11 +332,10 @@ body {
 }
 
 .tiktok-embed {
-    height: 60vh;
+    height: 80vh;
     max-height: 560px; 
     max-width: 100%; 
     margin: 0 auto;
-    min-width: auto !important; /* Override TikTok's min-width */
 }
 
 .instagram-embed {
@@ -402,7 +401,6 @@ body {
 .tiktok-container {
     position: relative;
     width: 100%;
-    overflow: hidden;
     border-radius: 8px;
     margin-bottom: 15px;
 }
@@ -444,8 +442,8 @@ body {
     }
 
     .tiktok-embed {
-        height: 50vh;
-        max-height: 400px;
+        height: 70vh;
+        max-height: 550px;
     }
 
     .leaflet-popup-content-wrapper {
@@ -455,8 +453,8 @@ body {
 
 @media (max-width: 480px) {
     .tiktok-embed {
-        height: 40vh;
-        max-height: 300px;
+        height: 70vh;
+        max-height: 450px;
     }
 
     .leaflet-popup-content-wrapper {
