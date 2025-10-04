@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 
 
 ALLOWED_PLATFORMS = {
-    "TikTok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
+    #"TikTok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
     "YouTube Shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
 }
 
@@ -174,12 +174,12 @@ def create_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # Resolve TikTok URLs to full URLs
-    if link_platform == "TikTok":
-        link = resolve_tiktok_url(link)
-        # Double-check after resolution
-        if is_tiktok_photo_url(link):
-            return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
+    # # Resolve TikTok URLs to full URLs
+    # if link_platform == "TikTok":
+    #     link = resolve_tiktok_url(link)
+    #     # Double-check after resolution
+    #     if is_tiktok_photo_url(link):
+    #         return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     if check_only:
         return Response({"message": "Valid link", "platform": link_platform})

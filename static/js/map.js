@@ -130,43 +130,44 @@ function createPopupContent(pin) {
                     </div>
                 `;
             }
-        } else if (platformLower === 'tiktok') {
-            // Extract video ID from TikTok URL
-            // Handles both full URLs (tiktok.com/@username/video/ID) and shortened URLs (vm.tiktok.com/ID)
-            let tiktokId = null;
+        } 
+        // else if (platformLower === 'tiktok') {
+        //     // Extract video ID from TikTok URL
+        //     // Handles both full URLs (tiktok.com/@username/video/ID) and shortened URLs (vm.tiktok.com/ID)
+        //     let tiktokId = null;
             
-            // Try standard TikTok URL format
-            let match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\/]+\/video\/([^/?&]+)/i);
-            if (match) {
-                tiktokId = match[1];
-            }
+        //     // Try standard TikTok URL format
+        //     let match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\/]+\/video\/([^/?&]+)/i);
+        //     if (match) {
+        //         tiktokId = match[1];
+        //     }
             
-            if (tiktokId) {
-                // Check if it's a photo URL
-                const isPhoto = pin.link.includes('/photo/');
+        //     if (tiktokId) {
+        //         // Check if it's a photo URL
+        //         const isPhoto = pin.link.includes('/photo/');
                 
-                embedHtml = `
-                    <div class="embed-container tiktok-embed">
-                        <iframe 
-                            src="https://www.tiktok.com/embed/v2/${tiktokId}" 
-                            width="100%" 
-                            height="${isPhoto ? '600' : '100%'}" 
-                            style="border:none; max-width: 100%;"
-                            allowfullscreen
-                            onload="this.style.display='block'"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                        </iframe>
-                        <div class="embed-fallback" style="display: none;">
-                            <div class="embed-fallback-message">
-                                <i class="fab fa-tiktok"></i>
-                                <p>Unable to embed this TikTok ${isPhoto ? 'photo' : 'video'}</p>
-                                <p>Click the "Open Link" button below to view on TikTok</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        }
+        //         embedHtml = `
+        //             <div class="embed-container tiktok-embed">
+        //                 <iframe 
+        //                     src="https://www.tiktok.com/embed/v2/${tiktokId}" 
+        //                     width="100%" 
+        //                     height="${isPhoto ? '600' : '100%'}" 
+        //                     style="border:none; max-width: 100%;"
+        //                     allowfullscreen
+        //                     onload="this.style.display='block'"
+        //                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+        //                 </iframe>
+        //                 <div class="embed-fallback" style="display: none;">
+        //                     <div class="embed-fallback-message">
+        //                         <i class="fab fa-tiktok"></i>
+        //                         <p>Unable to embed this TikTok ${isPhoto ? 'photo' : 'video'}</p>
+        //                         <p>Click the "Open Link" button below to view on TikTok</p>
+        //                     </div>
+        //                 </div>
+        //             </div>
+        //         `;
+        //     }
+        // }
     }
     
     // If no embed available, show the link
