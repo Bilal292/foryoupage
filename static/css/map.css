@@ -332,9 +332,11 @@ body {
 }
 
 .tiktok-embed {
-    height: 560px; 
-    max-width: 320px;
-    margin: 0 auto; 
+    height: 60vh;
+    max-height: 560px; 
+    max-width: 100%; 
+    margin: 0 auto;
+    min-width: auto !important; /* Override TikTok's min-width */
 }
 
 .instagram-embed {
@@ -392,12 +394,17 @@ body {
 
 /* Custom popup styles */
 .custom-popup {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 15px;
-    min-width: 250px;
-    /* Allow wider popups */
-    max-width: 350px;
-    width: auto !important;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* TikTok container for better responsiveness */
+.tiktok-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 15px;
 }
 
 /* Mobile adjustments */
@@ -434,5 +441,25 @@ body {
     
     .agreement-content {
         max-height: 50vh;
+    }
+
+    .tiktok-embed {
+        height: 50vh;
+        max-height: 400px;
+    }
+
+    .leaflet-popup-content-wrapper {
+        max-width: 300px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .tiktok-embed {
+        height: 40vh;
+        max-height: 300px;
+    }
+
+    .leaflet-popup-content-wrapper {
+        max-width: 250px !important;
     }
 }

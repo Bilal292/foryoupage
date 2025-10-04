@@ -125,15 +125,17 @@ function createPopupContent(pin) {
 
         if (videoId) {
             embedHtml = `
-                <blockquote 
-                    class="tiktok-embed" 
-                    cite="${url}" 
-                    data-video-id="${videoId}" 
-                    style="max-width: 605px; min-width: 325px;">
-                    <section>
-                        <a href="${url}" target="_blank">View on TikTok</a>
-                    </section>
-                </blockquote>
+                <div class="tiktok-container">
+                    <blockquote 
+                        class="tiktok-embed" 
+                        cite="${url}" 
+                        data-video-id="${videoId}" 
+                        style="max-width: 605px;">
+                        <section>
+                            <a href="${url}" target="_blank">View on TikTok</a>
+                        </section>
+                    </blockquote>
+                </div>
             `;
         } else {
             embedHtml = `<div class="popup-link">${url}</div>`;
@@ -170,7 +172,10 @@ function createMarkerWithPin(pin) {
         maxWidth: 350,
         className: 'custom-popup-container',
         autoClose: false,  
-        closeButton: true 
+        closeButton: true,
+        autoPanPaddingTopLeft: [20, 80], 
+        autoPanPaddingBottomRight: [20, 80],
+        keepInView: true  
     });
     return marker;
 }
@@ -209,6 +214,21 @@ function loadPins() {
                 }
             });
         });
+}
+
+// Adjust popup for mobile devices
+function adjustPopupForMobile() {
+    if (window.innerWidth <= 768 && currentPopup) {
+        const popupElement = currentPopup.getElement();
+        if (popupElement) {
+            // Reduce popup size on mobile
+            const content = popupElement.querySelector('.leaflet-popup-content');
+            if (content) {
+                content.style.maxHeight = '70vh';
+                content.style.overflowY = 'auto';
+            }
+        }
+    }
 }
 
 // Handle popup events
@@ -255,6 +275,8 @@ map.on('popupopen', function(e) {
             }
         }
     }, 10);
+    
+    adjustPopupForMobile();
 });
 
 map.on('popupclose', function(e) {
