@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Pin
+from .models import Pin, YouTubePin, TikTokPin
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
@@ -19,14 +19,44 @@ from django.core.exceptions import ValidationError
 
 
 ALLOWED_PLATFORMS = {
-    #"TikTok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
-    "YouTube Shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
+    "tiktok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
+    "youtube_shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
 }
 
 
 # ----------------------------
 # Utilities
 # ----------------------------
+
+def resolve_tiktok_url(url):
+    """
+    Resolve shortened TikTok URLs to their full URLs
+    Returns the full URL or the original URL if resolution fails
+    """
+    try:
+        # Make a HEAD request to follow redirects
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        final_url = response.url
+        
+        # Verify it's a TikTok URL
+        if 'tiktok.com' in final_url:
+            return final_url
+        return url
+    except requests.exceptions.RequestException:
+        return url
+
+def extract_tiktok_video_id(url):
+    """Extract TikTok video ID from URL"""
+    # If it's a shortened URL, resolve it first
+    if 'vm.tiktok.com' in url or 'vt.tiktok.com' in url:
+        url = resolve_tiktok_url(url)
+    
+    # Extract video ID from standard URL format
+    match = re.search(r'tiktok\.com/@[^/]+/video/(\d+)', url)
+    if match:
+        return match.group(1)
+    
+    return None
 
 def is_tiktok_photo_url(url):
     """Check if a URL is a TikTok photo URL"""
@@ -55,23 +85,6 @@ def get_link_platform(link):
             break
     
     return platform_detected
-
-def resolve_tiktok_url(url):
-    """
-    Resolve shortened TikTok URLs to their full URLs
-    Returns the full URL or the original URL if resolution fails
-    """
-    try:
-        # Make a HEAD request to follow redirects
-        response = requests.head(url, allow_redirects=True, timeout=5)
-        final_url = response.url
-        
-        # Verify it's a TikTok URL
-        if 'tiktok.com' in final_url:
-            return final_url
-        return url
-    except requests.exceptions.RequestException:
-        return url
 
 def get_client_ip(_, request):
     """Get client IP"""
@@ -174,15 +187,17 @@ def create_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # # Resolve TikTok URLs to full URLs
-    # if link_platform == "TikTok":
-    #     link = resolve_tiktok_url(link)
-    #     # Double-check after resolution
-    #     if is_tiktok_photo_url(link):
-    #         return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
+    # Check if it's a TikTok photo URL
+    if link_platform == "tiktok" and is_tiktok_photo_url(link):
+        return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     if check_only:
-        return Response({"message": "Valid link", "platform": link_platform})
+        # Convert platform key to display name
+        platform_display = {
+            "youtube_shorts": "YouTube Shorts",
+            "tiktok": "TikTok"
+        }.get(link_platform, "Unknown")
+        return Response({"message": "Valid link", "platform": platform_display})
 
     # Use client-side coordinates if available, otherwise fall back to IP-based
     if client_lat and client_lon:
@@ -195,15 +210,58 @@ def create_pin(request):
         return Response({"error": "Could not determine location"}, status=400)
 
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
+    
+    # Create the generic Pin first
     pin = Pin.objects.create(
-        link=link,
         latitude=jitter_lat,
-        longitude=jitter_lon,
-        platform=link_platform
+        longitude=jitter_lon
     )
-
-    serializer = PinSerializer(pin)
-    return Response(serializer.data)
+    
+    # Now create the platform-specific pin
+    if link_platform == "youtube_shorts":
+        youtube_pin = YouTubePin.objects.create(pin=pin, url=link)
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "YouTube Shorts",
+            "url": youtube_pin.url
+        }
+        return Response(serializer_data)
+    elif link_platform == "tiktok":
+        # Resolve TikTok URL to full URL
+        resolved_url = resolve_tiktok_url(link)
+        
+        # Extract video ID
+        video_id = extract_tiktok_video_id(resolved_url)
+        if not video_id:
+            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+            return Response({"error": "Could not extract TikTok video ID"}, status=400)
+        
+        # Create TikTokPin with minimal data
+        tiktok_pin = TikTokPin.objects.create(
+            pin=pin,
+            url=resolved_url,
+            video_id=video_id
+        )
+        
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "TikTok",
+            "url": tiktok_pin.url,
+            "video_id": tiktok_pin.video_id
+        }
+        return Response(serializer_data)
+    
+    # If we get here, the platform wasn't handled
+    pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+    return Response({"error": "Platform not supported yet"}, status=400)
 
 
 @staff_member_required
@@ -220,9 +278,9 @@ def create_secret_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # Resolve TikTok URLs to full URLs
-    if link_platform == "TikTok":
-        link = resolve_tiktok_url(link)
+    # Check if it's a TikTok photo URL
+    if link_platform == "tiktok" and is_tiktok_photo_url(link):
+        return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     # Regions with higher population density (for weighted random selection)
     regions = [
@@ -255,15 +313,57 @@ def create_secret_pin(request):
     # Apply jitter to avoid exact overlaps
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
 
+    # Create the generic Pin first
     pin = Pin.objects.create(
-        link=link,
         latitude=jitter_lat,
-        longitude=jitter_lon,
-        platform=link_platform
+        longitude=jitter_lon
     )
-
-    serializer = PinSerializer(pin)
-    return Response(serializer.data)
+    
+    # Now create the platform-specific pin
+    if link_platform == "youtube_shorts":
+        youtube_pin = YouTubePin.objects.create(pin=pin, url=link)
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "YouTube Shorts",
+            "url": youtube_pin.url
+        }
+        return Response(serializer_data)
+    elif link_platform == "tiktok":
+        # Resolve TikTok URL to full URL
+        resolved_url = resolve_tiktok_url(link)
+        
+        # Extract video ID
+        video_id = extract_tiktok_video_id(resolved_url)
+        if not video_id:
+            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+            return Response({"error": "Could not extract TikTok video ID"}, status=400)
+        
+        # Create TikTokPin with minimal data
+        tiktok_pin = TikTokPin.objects.create(
+            pin=pin,
+            url=resolved_url,
+            video_id=video_id
+        )
+        
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "TikTok",
+            "url": tiktok_pin.url,
+            "video_id": tiktok_pin.video_id
+        }
+        return Response(serializer_data)
+    
+    # If we get here, the platform wasn't handled
+    pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+    return Response({"error": "Platform not supported yet"}, status=400)
 
 # ----------------------------
 # Template View

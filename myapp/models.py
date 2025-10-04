@@ -3,15 +3,10 @@ from django.contrib.auth.models import User
 
 
 class Pin(models.Model):
-    link = models.URLField()
-
     latitude = models.FloatField()
     longitude = models.FloatField()
-
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
-
-    platform = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         indexes = [
@@ -22,5 +17,20 @@ class Pin(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.link} ({self.latitude}, {self.longitude})"
+        return f"({self.latitude}, {self.longitude})"
+    
+class YouTubePin(models.Model):
+    pin = models.OneToOneField(Pin, on_delete=models.CASCADE, related_name='youtube_pin')
+    url = models.URLField()
+
+    def __str__(self):
+        return f"YouTube pin: {self.url}"
+    
+class TikTokPin(models.Model):
+    pin = models.OneToOneField(Pin, on_delete=models.CASCADE, related_name='tiktok_pin')
+    url = models.URLField()
+    video_id = models.CharField(max_length=50)  # TikTok video ID
+
+    def __str__(self):
+        return f"TikTok pin: {self.url}"
     

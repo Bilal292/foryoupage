@@ -41,138 +41,108 @@ var currentPopup = null;
 var isAdjustingForPopup = false;
 var userInteracted = false;
 
-// Function to create custom popup content
+// Customising the pin pop up
 function createPopupContent(pin) {
     // Determine platform classes
     let platformClass = 'default';
     let buttonClass = 'default';
-    let platformName = 'Unknown Platform';
+    let platformName = pin.platform || 'Unknown Platform';
     
     if (pin.platform) {
         const platformLower = pin.platform.toLowerCase();
-        if (platformLower === 'tiktok') {
-            platformClass = 'tiktok';
-            buttonClass = 'tiktok';
-            platformName = 'TikTok';
-        } else if (platformLower === 'youtube shorts') {
+        if (platformLower === 'youtube shorts') {
             platformClass = 'youtube';
             buttonClass = 'youtube';
-            platformName = 'YouTube';
-        } else if (platformLower === 'instagram reels') {
-            platformClass = 'instagram';
-            buttonClass = 'instagram';
-            platformName = 'Instagram';
-        } else if (platformLower === 'x (twitter)') {
-            platformClass = 'twitter';
-            buttonClass = 'twitter';
-            platformName = 'X (Twitter)';
+        } else if (platformLower === 'tiktok') {
+            platformClass = 'tiktok';
+            buttonClass = 'tiktok';
         }
     }
     
     // Format date
     const createdDate = new Date(pin.created_at);
-    const formattedDate = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const formattedDate = createdDate.toLocaleDateString() + ' ' + 
+                          createdDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    // Get the URL from platform_data
+    const url = pin.platform_data?.url || '';
     
     // Generate embed HTML for supported platforms
     let embedHtml = '';
-    if (pin.platform) {
-        const platformLower = pin.platform.toLowerCase();
+    
+    if (pin.platform && pin.platform.toLowerCase() === 'youtube shorts' && url) {
+        // Extract video ID from any YouTube URL format
+        let youtubeId = null;
         
-        if (platformLower === 'youtube shorts') {
-            // Extract video ID from any YouTube URL format
-            // Handles: youtube.com/watch?v=ID, youtube.com/shorts/ID, youtu.be/ID, youtube.com/embed/ID
-            // Also handles URLs with or without www, http/https, and additional parameters
-            let youtubeId = null;
-            
-            // Try standard watch URL (with or without www, http/https)
-            if (!youtubeId) {
-                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/i);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try shorts URL (with or without www, http/https)
-            if (!youtubeId) {
-                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^/?&]+)/i);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try short URL (youtu.be) (with or without www, http/https)
-            if (!youtubeId) {
-                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^/?&]+)/i);
-                if (match) youtubeId = match[1];
-            }
-            
-            // Try embed URL (with or without www, http/https)
-            if (!youtubeId) {
-                const match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^/?&]+)/i);
-                if (match) youtubeId = match[1];
-            }
-            
-            if (youtubeId) {
-                embedHtml = `
-                    <div class="embed-container youtube-embed">
-                        <iframe 
-                            src="https://www.youtube.com/embed/${youtubeId}" 
-                            width="100%" 
-                            height="400" 
-                            style="border:none;"
-                            allowfullscreen
-                            onload="this.style.display='block'"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                        </iframe>
-                        <div class="embed-fallback" style="display: none;">
-                            <div class="embed-fallback-message">
-                                <i class="fab fa-youtube"></i>
-                                <p>Unable to embed this YouTube video</p>
-                                <p>Click the "Open Link" button below to view on YouTube</p>
-                            </div>
+        // Try standard watch URL
+        if (!youtubeId) {
+            const match = url.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/i);
+            if (match) youtubeId = match[1];
+        }
+        
+        // Try shorts URL
+        if (!youtubeId) {
+            const match = url.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^/?&]+)/i);
+            if (match) youtubeId = match[1];
+        }
+        
+        // Try short URL
+        if (!youtubeId) {
+            const match = url.match(/(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^/?&]+)/i);
+            if (match) youtubeId = match[1];
+        }
+        
+        // Try embed URL
+        if (!youtubeId) {
+            const match = url.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^/?&]+)/i);
+            if (match) youtubeId = match[1];
+        }
+        
+        if (youtubeId) {
+            embedHtml = `
+                <div class="embed-container youtube-embed">
+                    <iframe 
+                        src="https://www.youtube.com/embed/${youtubeId}" 
+                        width="100%" 
+                        height="400" 
+                        style="border:none;"
+                        allowfullscreen
+                        onload="this.style.display='block'"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                    </iframe>
+                    <div class="embed-fallback" style="display: none;">
+                        <div class="embed-fallback-message">
+                            <i class="fab fa-youtube"></i>
+                            <p>Unable to embed this YouTube video</p>
+                            <p>Click the "Open Link" button below to view on YouTube</p>
                         </div>
                     </div>
-                `;
-            }
-        } 
-        // else if (platformLower === 'tiktok') {
-        //     // Extract video ID from TikTok URL
-        //     // Handles both full URLs (tiktok.com/@username/video/ID) and shortened URLs (vm.tiktok.com/ID)
-        //     let tiktokId = null;
-            
-        //     // Try standard TikTok URL format
-        //     let match = pin.link.match(/(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\/]+\/video\/([^/?&]+)/i);
-        //     if (match) {
-        //         tiktokId = match[1];
-        //     }
-            
-        //     if (tiktokId) {
-        //         // Check if it's a photo URL
-        //         const isPhoto = pin.link.includes('/photo/');
-                
-        //         embedHtml = `
-        //             <div class="embed-container tiktok-embed">
-        //                 <iframe 
-        //                     src="https://www.tiktok.com/embed/v2/${tiktokId}" 
-        //                     width="100%" 
-        //                     height="${isPhoto ? '600' : '100%'}" 
-        //                     style="border:none; max-width: 100%;"
-        //                     allowfullscreen
-        //                     onload="this.style.display='block'"
-        //                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-        //                 </iframe>
-        //                 <div class="embed-fallback" style="display: none;">
-        //                     <div class="embed-fallback-message">
-        //                         <i class="fab fa-tiktok"></i>
-        //                         <p>Unable to embed this TikTok ${isPhoto ? 'photo' : 'video'}</p>
-        //                         <p>Click the "Open Link" button below to view on TikTok</p>
-        //                     </div>
-        //                 </div>
-        //             </div>
-        //         `;
-        //     }
-        // }
+                </div>
+            `;
+        }
+    } else if (pin.platform && pin.platform.toLowerCase() === 'tiktok' && url) {
+        const videoId = pin.platform_data?.video_id;
+
+        if (videoId) {
+            embedHtml = `
+                <blockquote 
+                    class="tiktok-embed" 
+                    cite="${url}" 
+                    data-video-id="${videoId}" 
+                    style="max-width: 605px; min-width: 325px;">
+                    <section>
+                        <a href="${url}" target="_blank">View on TikTok</a>
+                    </section>
+                </blockquote>
+            `;
+        } else {
+            embedHtml = `<div class="popup-link">${url}</div>`;
+        }
     }
     
     // If no embed available, show the link
-    if (!embedHtml) {
-        embedHtml = `<div class="popup-link">${pin.link}</div>`;
+    if (!embedHtml && url) {
+        embedHtml = `<div class="popup-link">${url}</div>`;
     }
     
     return `
@@ -184,7 +154,7 @@ function createPopupContent(pin) {
                 ${embedHtml}
             </div>
             <div class="popup-actions">
-                <a href="${pin.link}" target="_blank" class="popup-button ${buttonClass}">
+                <a href="${url}" target="_blank" class="popup-button ${buttonClass}">
                     <i class="fas fa-external-link-alt"></i> Open Link
                 </a>
             </div>
@@ -246,7 +216,33 @@ map.on('popupopen', function(e) {
     currentPopup = e.popup;
     isAdjustingForPopup = true;
     userInteracted = false;
-    
+
+    // Wait a moment for DOM to settle
+    setTimeout(() => {
+        const popupElement = e.popup.getElement();
+        if (popupElement) {
+            // Look for TikTok embeds inside the popup
+            const embeds = popupElement.querySelectorAll('.tiktok-embed');
+            if (embeds.length > 0) {
+                // If TikTok script has already loaded, force it to re-render
+                if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
+                    window.tiktokEmbed.render();
+                } else {
+                    // If not yet loaded, load it now
+                    const script = document.createElement('script');
+                    script.src = "https://www.tiktok.com/embed.js";
+                    script.async = true;
+                    script.onload = function() {
+                        if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
+                            window.tiktokEmbed.render();
+                        }
+                    };
+                    document.body.appendChild(script);
+                }
+            }
+        }
+    }, 300);
+
     // Prevent clicks inside the popup from closing it
     setTimeout(function() {
         const popupElement = e.popup.getElement();
@@ -325,7 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
     agreementCheck.addEventListener('change', function() {
         agreeAndContinueBtn.disabled = !this.checked;
     });
-
     
     // Handle "Agree and Continue" button click
     agreeAndContinueBtn.addEventListener('click', function() {
