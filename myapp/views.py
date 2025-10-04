@@ -21,6 +21,7 @@ from django.core.exceptions import ValidationError
 ALLOWED_PLATFORMS = {
     "tiktok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
     "youtube_shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
+    #instagram soon
 }
 
 
