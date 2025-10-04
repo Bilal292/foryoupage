@@ -125,16 +125,15 @@ function createPopupContent(pin) {
 
         if (videoId) {
             embedHtml = `
-                <div class="tiktok-container">
-                    <blockquote 
-                        class="tiktok-embed" 
-                        cite="${url}" 
-                        data-video-id="${videoId}">
-                        <section>
-                            <a href="${url}" target="_blank">View on TikTok</a>
-                        </section>
-                    </blockquote>
-                </div>
+                <blockquote 
+                    class="tiktok-embed" 
+                    cite="${url}" 
+                    data-video-id="${videoId}" 
+                    style="max-width: 605px; min-width: 325px;">
+                    <section>
+                        <a href="${url}" target="_blank">View on TikTok</a>
+                    </section>
+                </blockquote>
             `;
         } else {
             embedHtml = `<div class="popup-link">${url}</div>`;
@@ -148,16 +147,10 @@ function createPopupContent(pin) {
     
     return `
         <div class="custom-popup">
-            <div class="popup-header">
-                <div class="platform-badge ${platformClass}">${platformName}</div>
-            </div>
             <div class="popup-content">
                 ${embedHtml}
             </div>
             <div class="popup-actions">
-                <a href="${url}" target="_blank" class="popup-button ${buttonClass}">
-                    <i class="fas fa-external-link-alt"></i> Open Link
-                </a>
             </div>
         </div>
     `;
@@ -166,20 +159,13 @@ function createPopupContent(pin) {
 // Store pin data in markers to identify them later
 function createMarkerWithPin(pin) {
     let marker = L.marker([pin.latitude, pin.longitude]);
-    marker.pinData = pin;
-    
-    // Set popup options based on platform
-    let popupOptions = {
-        maxWidth: pin.platform && pin.platform.toLowerCase() === 'tiktok' ? 500 : 350,
+    marker.pinData = pin; // Store pin data for later identification
+    marker.bindPopup(createPopupContent(pin), {
+        maxWidth: 350,
         className: 'custom-popup-container',
         autoClose: false,  
-        closeButton: true,
-        autoPanPaddingTopLeft: [20, 80],
-        autoPanPaddingBottomRight: [20, 80],
-        keepInView: true
-    };
-    
-    marker.bindPopup(createPopupContent(pin), popupOptions);
+        closeButton: true 
+    });
     return marker;
 }
 
@@ -217,21 +203,6 @@ function loadPins() {
                 }
             });
         });
-}
-
-// Adjust popup for mobile devices
-function adjustPopupForMobile() {
-    if (window.innerWidth <= 768 && currentPopup) {
-        const popupElement = currentPopup.getElement();
-        if (popupElement) {
-            // Reduce popup size on mobile
-            const content = popupElement.querySelector('.leaflet-popup-content');
-            if (content) {
-                content.style.maxHeight = '70vh';
-                content.style.overflowY = 'auto';
-            }
-        }
-    }
 }
 
 // Handle popup events
@@ -278,8 +249,6 @@ map.on('popupopen', function(e) {
             }
         }
     }, 10);
-
-    adjustPopupForMobile();
 });
 
 map.on('popupclose', function(e) {
