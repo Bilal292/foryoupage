@@ -300,30 +300,6 @@ body {
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 15px;
-}
-
-.tiktok-embed {
-    height: 400px;
-}
-
-.youtube-embed {
-    height: 200px;
-}
-
-.instagram-embed {
-    height: 400px;
-}
-
-.twitter-embed {
-    height: 300px;
-}
-
-/* Embed container styles */
-.embed-container {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 15px;
     width: 100%;
 }
 
@@ -334,7 +310,6 @@ body {
 .tiktok-embed {
     height: 80vh;
     max-height: 560px; 
-    max-width: 100%; 
     margin: 0 auto;
 }
 
@@ -400,7 +375,6 @@ body {
 /* TikTok container for better responsiveness */
 .tiktok-container {
     position: relative;
-    width: 100%;
     border-radius: 8px;
     margin-bottom: 15px;
 }
