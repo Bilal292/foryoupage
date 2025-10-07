@@ -366,6 +366,17 @@ def create_secret_pin(request):
     pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
     return Response({"error": "Platform not supported yet"}, status=400)
 
+
+@api_view(['GET'])
+def random_pin(request):
+    # Get a random active pin
+    pin = Pin.objects.filter(is_active=True).order_by('?').first()
+    if not pin:
+        return Response({"error": "No pins available"}, status=404)
+    
+    serializer = PinSerializer(pin)
+    return Response(serializer.data)
+
 # ----------------------------
 # Template View
 # ----------------------------

@@ -1,3 +1,7 @@
+window.openRandomPinPopup = false;
+window.randomPinId = null;
+window.isGoingToRandomPin = false;
+
 // Get CSRF token for Django
 function getCookie(name) {
     let cookieValue = null;
@@ -169,6 +173,76 @@ function createMarkerWithPin(pin) {
     return marker;
 }
 
+function isPointVisible(lat, lng) {
+    const bounds = map.getBounds();
+    return bounds.contains([lat, lng]);
+}
+
+function isPinInCluster(pinId) {
+    // Check if the pin is in a cluster by looking for it in the markers
+    let pinFound = false;
+    let isClustered = true;
+    
+    markers.eachLayer(layer => {
+        if (layer.pinData && layer.pinData.id === pinId) {
+            pinFound = true;
+            // Check if the marker is visible (not in a cluster)
+            if (layer._icon && layer._icon.style.display !== 'none') {
+                isClustered = false;
+            }
+        }
+    });
+    
+    // If pin not found, it might be in a cluster that hasn't been expanded yet
+    if (!pinFound) {
+        return true;
+    }
+    
+    return isClustered;
+}
+
+function zoomToPin(pinId, maxZoom = 18) {
+    return new Promise((resolve, reject) => {
+        // Check if we've reached max zoom
+        if (map.getZoom() >= maxZoom) {
+            reject(new Error("Reached maximum zoom level"));
+            return;
+        }
+        
+        // Check if the pin is still in a cluster
+        if (isPinInCluster(pinId)) {
+            // Zoom in one level
+            map.zoomIn(1, {
+                animate: true,
+                duration: 0.5
+            });
+            
+            // Wait for the zoom to complete, then check again
+            setTimeout(() => {
+                zoomToPin(pinId, maxZoom)
+                    .then(resolve)
+                    .catch(() => {
+                        // If we can't zoom further, try to find the pin and open it
+                        markers.eachLayer(layer => {
+                            if (layer.pinData && layer.pinData.id === pinId) {
+                                layer.openPopup();
+                            }
+                        });
+                        resolve();
+                    });
+            }, 600);
+        } else {
+            // Pin is visible, find it and open the popup
+            markers.eachLayer(layer => {
+                if (layer.pinData && layer.pinData.id === pinId) {
+                    layer.openPopup();
+                }
+            });
+            resolve();
+        }
+    });
+}
+
 // Load pins from the server
 function loadPins() {
     // Check if there's an open popup and remember its pin data
@@ -202,6 +276,11 @@ function loadPins() {
                     marker.openPopup();
                 }
             });
+            
+            // If we have a random pin ID, check if it's in the loaded pins
+            if (window.randomPinId) {
+                const randomPin = pins.find(pin => pin.id === window.randomPinId);
+            }
         });
 }
 
@@ -269,6 +348,12 @@ map.on('moveend', function() {
         return;
     }
     
+    // If we're going to a random pin, don't close the popup
+    if (window.isGoingToRandomPin) {
+        window.isGoingToRandomPin = false;
+        return;
+    }
+    
     // If the user manually moved the map, close any open popup
     if (userInteracted && currentPopup && currentPopup.isOpen()) {
         currentPopup.close();
@@ -287,6 +372,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap modal
     const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
     const agreementModal = new bootstrap.Modal(document.getElementById('agreementModal'));
+
+    // Random pin button functionality
+    const randomPinBtn = document.getElementById("randomPinBtn");
     
     // UI elements
     const openFormBtn = document.getElementById("openFormBtn");
@@ -299,6 +387,66 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Track if user has already agreed in this session
     let hasAgreedThisSession = sessionStorage.getItem('hasAgreedToTerms') === 'true';
+
+
+    randomPinBtn.addEventListener("click", function() {
+        // Show loading indicator
+        randomPinBtn.disabled = true;
+        randomPinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        fetch("/api/pins/random/")
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return res.json();
+            })
+            .then(pin => {
+                if (pin.error) {
+                    showToast(`❌ ${pin.error}`, "error");
+                    randomPinBtn.disabled = false;
+                    randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                    return;
+                }
+                
+                // Store the random pin ID
+                window.randomPinId = pin.id;
+                window.isGoingToRandomPin = true;
+                
+                // First, pan to the pin's location at a reasonable zoom level
+                map.setView([pin.latitude, pin.longitude], 10, {
+                    animate: true,
+                    duration: 1.5
+                });
+                
+                // After panning, start the zoom-in process
+                setTimeout(() => {
+                    // Load pins for the new area
+                    loadPins();
+                    
+                    // Wait a bit for pins to load, then start zooming
+                    setTimeout(() => {
+                        zoomToPin(pin.id)
+                            .then(() => {
+                                // Success! Reset button
+                                randomPinBtn.disabled = false;
+                                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            })
+                            .catch(error => {
+                                console.error("Error zooming to pin:", error);
+                                showToast("⚠️ Could not zoom to pin", "warning");
+                                randomPinBtn.disabled = false;
+                                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            });
+                    }, 1000);
+                }, 1600);
+            })
+            .catch(error => {
+                showToast("❌ Error fetching random pin", "error");
+                randomPinBtn.disabled = false;
+                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+            });
+    });
 
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {

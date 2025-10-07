@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/pins/in_bounds/', views.pins_in_bounds, name='pins-in-bounds'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     path('terms-and-conditions/', views.terms_and_conditions, name='terms_and_conditions'),
+    path('api/pins/random/', views.random_pin, name='random-pin'),
 ]
