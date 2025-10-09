@@ -173,10 +173,6 @@ def create_pin(request):
     link = request.data.get("link")
     check_only = request.data.get("check_only", False)
 
-    # Client-side coordinates if provided
-    client_lat = request.data.get("latitude")
-    client_lon = request.data.get("longitude")
-
     if not link:
         return Response({"error": "Link is required"}, status=400)
     
@@ -193,29 +189,55 @@ def create_pin(request):
         return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     if check_only:
-        # Convert platform key to display name
         platform_display = {
             "youtube_shorts": "YouTube Shorts",
             "tiktok": "TikTok"
         }.get(link_platform, "Unknown")
         return Response({"message": "Valid link", "platform": platform_display})
 
-    # Use client-side coordinates if available, otherwise fall back to IP-based
-    if client_lat and client_lon:
-        lat, lon = float(client_lat), float(client_lon)
+    # Get location from request
+    location_type = request.data.get("location_type", "selected")
+    
+    if location_type == "random":
+        # Generate random location (same logic as in create_secret_pin)
+        regions = [
+            {"name": "North America", "weight": 7, "min_lat": 15, "max_lat": 75, "min_lon": -170, "max_lon": -50},
+            {"name": "Europe", "weight": 6, "min_lat": 35, "max_lat": 70, "min_lon": -10, "max_lon": 40},
+            {"name": "Asia", "weight": 10, "min_lat": -10, "max_lat": 55, "min_lon": 40, "max_lon": 150},
+            {"name": "Africa", "weight": 4, "min_lat": -35, "max_lat": 35, "min_lon": -20, "max_lon": 50},
+            {"name": "South America", "weight": 3, "min_lat": -55, "max_lat": 15, "min_lon": -90, "max_lon": -35},
+            {"name": "Oceania", "weight": 2, "min_lat": -50, "max_lat": 0, "min_lon": 110, "max_lon": 180},
+        ]
+        
+        total_weight = sum(region["weight"] for region in regions)
+        r = random.uniform(0, total_weight)
+        cumulative_weight = 0
+        selected_region = None
+        
+        for region in regions:
+            cumulative_weight += region["weight"]
+            if r <= cumulative_weight:
+                selected_region = region
+                break
+        
+        lat = random.uniform(selected_region["min_lat"], selected_region["max_lat"])
+        lon = random.uniform(selected_region["min_lon"], selected_region["max_lon"])
     else:
-        ip = get_client_ip("bruh", request)
-        lat, lon = ip_to_location(ip)
-
-    if not lat or not lon:
-        return Response({"error": "Could not determine location"}, status=400)
+        # Use provided coordinates
+        client_lat = request.data.get("latitude")
+        client_lon = request.data.get("longitude")
+        
+        if not client_lat or not client_lon:
+            return Response({"error": "Location coordinates are required"}, status=400)
+        
+        lat, lon = float(client_lat), float(client_lon)
 
     jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
     
     # Create the generic Pin first
     pin = Pin.objects.create(
-        latitude=jitter_lat,
-        longitude=jitter_lon
+        latitude=lat,
+        longitude=lon
     )
     
     # Now create the platform-specific pin
@@ -316,8 +338,8 @@ def create_secret_pin(request):
 
     # Create the generic Pin first
     pin = Pin.objects.create(
-        latitude=jitter_lat,
-        longitude=jitter_lon
+        latitude=lat,
+        longitude=lon
     )
     
     # Now create the platform-specific pin

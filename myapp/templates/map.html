@@ -49,6 +49,29 @@
                             <input type="url" class="form-control" id="linkInput" placeholder="https://example.com" required>
                         </div>
                         
+                        <div class="mb-3">
+                            <label class="form-label">Location Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="locationOption" id="selectedLocationOption" value="selected">
+                                <label class="form-check-label" for="selectedLocationOption">
+                                    Post at selected location
+                                </label>
+                                <div id="selectedLocationInfo" class="text-muted small ms-4"></div>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="locationOption" id="randomLocationOption" value="random">
+                                <label class="form-check-label" for="randomLocationOption">
+                                    Post at random location
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="locationOption" id="currentLocationOption" value="current">
+                                <label class="form-check-label" for="currentLocationOption">
+                                    Post at my current location
+                                </label>
+                            </div>
+                        </div>
+                        
                         <button type="button" class="btn btn-primary w-100" id="checkUrlBtn">Check URL</button>
                         
                         <div id="titleSection" class="mt-4" style="display: none;">

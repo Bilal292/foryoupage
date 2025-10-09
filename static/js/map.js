@@ -1,6 +1,12 @@
 window.openRandomPinPopup = false;
 window.randomPinId = null;
 window.isGoingToRandomPin = false;
+window.hasAgreedThisSession = sessionStorage.getItem('hasAgreedToTerms') === 'true';
+
+let selectedCoordinates = null;
+let mapClickHandler = null;
+let pinModal = null;
+let agreementModal = null;
 
 // Get CSRF token for Django
 function getCookie(name) {
@@ -44,6 +50,7 @@ map.addLayer(markers);
 var currentPopup = null;
 var isAdjustingForPopup = false;
 var userInteracted = false;
+var isOpeningPopup = false; // Flag to track if we're opening a popup
 
 // Customising the pin pop up
 function createPopupContent(pin) {
@@ -125,7 +132,7 @@ function createPopupContent(pin) {
             `;
         }
     } else if (pin.platform && pin.platform.toLowerCase() === 'tiktok' && url) {
-        const videoId = pin.platform_data?.video_id;
+        const videoId = pin.platform_data?.video_id || '';
 
         if (videoId) {
             embedHtml = `
@@ -163,8 +170,18 @@ function createPopupContent(pin) {
 // Store pin data in markers to identify them later
 function createMarkerWithPin(pin) {
     let marker = L.marker([pin.latitude, pin.longitude]);
-    marker.pinData = pin; // Store pin data for later identification
-    marker.bindPopup(createPopupContent(pin), {
+    
+    // Ensure pin data has the correct structure
+    const pinData = {
+        ...pin,
+        platform_data: pin.platform_data || {
+            url: pin.url || '',
+            video_id: pin.video_id || ''
+        }
+    };
+    
+    marker.pinData = pinData; // Store pin data for later identification
+    marker.bindPopup(createPopupContent(pinData), {
         maxWidth: 350,
         className: 'custom-popup-container',
         autoClose: false,  
@@ -288,6 +305,7 @@ function loadPins() {
 map.on('popupopen', function(e) {
     currentPopup = e.popup;
     isAdjustingForPopup = true;
+    isOpeningPopup = true;
     userInteracted = false;
 
     // Wait a moment for DOM to settle
@@ -354,6 +372,12 @@ map.on('moveend', function() {
         return;
     }
     
+    // If we're opening a popup, don't close it
+    if (isOpeningPopup) {
+        isOpeningPopup = false;
+        return;
+    }
+    
     // If the user manually moved the map, close any open popup
     if (userInteracted && currentPopup && currentPopup.isOpen()) {
         currentPopup.close();
@@ -364,14 +388,79 @@ map.on('moveend', function() {
     loadPins();
 });
 
+// Reset form function - moved to global scope
+function resetForm() {
+    document.getElementById("linkInput").value = "";
+    const titleSection = document.getElementById("titleSection");
+    if (titleSection) titleSection.style.display = "none";
+    
+    const pinForm = document.getElementById("pinForm");
+    if (pinForm) pinForm.classList.remove('was-validated');
+    
+    // Reset location options
+    const selectedLocationOption = document.getElementById('selectedLocationOption');
+    const randomLocationOption = document.getElementById('randomLocationOption');
+    const currentLocationOption = document.getElementById('currentLocationOption');
+    
+    if (selectedLocationOption) selectedLocationOption.checked = false;
+    if (randomLocationOption) randomLocationOption.checked = false;
+    if (currentLocationOption) currentLocationOption.checked = false;
+}
+
+function openPinModal() {
+    // Reset form
+    resetForm();
+    
+    // Set location options based on how the modal was opened
+    if (selectedCoordinates) {
+        // Modal opened by map click
+        const selectedLocationOption = document.getElementById('selectedLocationOption');
+        const selectedLocationInfo = document.getElementById('selectedLocationInfo');
+        
+        if (selectedLocationOption) selectedLocationOption.checked = true;
+        if (selectedLocationInfo) {
+            selectedLocationInfo.textContent = 
+                `Selected: ${selectedCoordinates.lat.toFixed(4)}, ${selectedCoordinates.lng.toFixed(4)}`;
+            selectedLocationInfo.style.display = 'block';
+        }
+    } else {
+        // Modal opened by FAB button
+        const randomLocationOption = document.getElementById('randomLocationOption');
+        const selectedLocationInfo = document.getElementById('selectedLocationInfo');
+        
+        if (randomLocationOption) randomLocationOption.checked = true;
+        if (selectedLocationInfo) selectedLocationInfo.style.display = 'none';
+    }
+    
+    // Show the modal
+    if (pinModal) {
+        pinModal.show();
+    }
+}
+
+// Add click event listener to the map
+map.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    selectedCoordinates = { lat, lng };
+    
+    // Open the modal with selected coordinates
+    if (window.hasAgreedThisSession) {
+        openPinModal();
+    } else {
+        if (agreementModal) {
+            agreementModal.show();
+        }
+    }
+});
+
 // Initial load
 map.whenReady(loadPins);
 
 // UI functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap modal
-    const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-    const agreementModal = new bootstrap.Modal(document.getElementById('agreementModal'));
+    pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+    agreementModal = new bootstrap.Modal(document.getElementById('agreementModal'));
 
     // Random pin button functionality
     const randomPinBtn = document.getElementById("randomPinBtn");
@@ -384,10 +473,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const toastMessage = document.getElementById('toastMessage');
     const agreementCheck = document.getElementById('agreementCheck');
     const agreeAndContinueBtn = document.getElementById('agreeAndContinueBtn');
-
-    // Track if user has already agreed in this session
-    let hasAgreedThisSession = sessionStorage.getItem('hasAgreedToTerms') === 'true';
-
 
     randomPinBtn.addEventListener("click", function() {
         // Show loading indicator
@@ -450,12 +535,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {
-        if (hasAgreedThisSession) {
-            // If already agreed in this session, show pin modal directly
-            pinModal.show();
+        selectedCoordinates = null; // Clear any previously selected coordinates
+        
+        if (window.hasAgreedThisSession) {
+            openPinModal();
         } else {
-            // Otherwise, show agreement modal first
-            agreementModal.show();
+            if (agreementModal) {
+                agreementModal.show();
+            }
         }
     });
 
@@ -469,11 +556,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (agreementCheck.checked) {
             // Remember agreement for this session
             sessionStorage.setItem('hasAgreedToTerms', 'true');
-            hasAgreedThisSession = true;
+            window.hasAgreedThisSession = true;
             
             // Hide agreement modal and show pin modal
-            agreementModal.hide();
-            pinModal.show();
+            if (agreementModal) {
+                agreementModal.hide();
+            }
+            openPinModal();
         }
     });
     
@@ -487,12 +576,6 @@ document.addEventListener('DOMContentLoaded', function() {
         agreementCheck.checked = false;
         agreeAndContinueBtn.disabled = true;
     });
-    
-    function resetForm() {
-        document.getElementById("linkInput").value = "";
-        titleSection.style.display = "none";
-        pinForm.classList.remove('was-validated');
-    }
     
     function showToast(message, type = 'success') {
         toastMessage.textContent = message;
@@ -546,6 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function getClientLocation() {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
+                reject(new Error("Geolocation is not supported by this browser."));
                 return;
             }
             
@@ -565,19 +649,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const linkInput = document.getElementById("linkInput");
         
         if (!linkInput.value) {
-            if (!linkInput.value) linkInput.classList.add('is-invalid');
+            linkInput.classList.add('is-invalid');
             return;
         }
         
         linkInput.classList.remove('is-invalid');
-
-        let locationData = {};
-        try {
-            const position = await getClientLocation();
-            locationData = position;
-        } catch (error) {
-            // console.log('Could not get client location, falling back to IP-based:', error);
+        
+        // Determine location type based on selected option
+        const locationType = document.querySelector('input[name="locationOption"]:checked').value;
+        let requestData = {
+            link: linkInput.value,
+            location_type: locationType
+        };
+        
+        if (locationType === "selected" && selectedCoordinates) {
+            requestData.latitude = selectedCoordinates.lat;
+            requestData.longitude = selectedCoordinates.lng;
+        } else if (locationType === "current") {
+            try {
+                const position = await getClientLocation();
+                requestData.latitude = position.latitude;
+                requestData.longitude = position.longitude;
+            } catch (error) {
+                showToast("❌ Could not get your current location", "error");
+                return;
+            }
         }
+        // For "random" location, no additional data is needed
         
         fetch("/api/pins/create/", {
             method: "POST",
@@ -585,29 +683,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 "Content-Type": "application/json",
                 "X-CSRFToken": csrftoken
             },
-            body: JSON.stringify({ 
-                link: linkInput.value, 
-                ...locationData
-            })
+            body: JSON.stringify(requestData)
         })
         .then(res => res.json())
         .then(data => {
             if (data.latitude && data.longitude) {
-                const marker = createMarkerWithPin(data);
-                markers.addLayer(marker);
+                showToast("✅ Pin posted successfully!");
+                if (pinModal) {
+                    pinModal.hide();
+                }
+                resetForm();
                 
-                // Open popup for the new marker
-                marker.openPopup();
+                // Reload pins to include the new one
+                loadPins();
                 
-                // Center map on new pin without triggering a reload
+                // Center map on new pin
                 map.panTo([data.latitude, data.longitude], {
                     animate: true,
                     duration: 1
                 });
-                
-                showToast("✅ Pin posted successfully!");
-                pinModal.hide();
-                resetForm();
             } else {
                 showToast("❌ Error posting pin", "error");
             }
