@@ -86,53 +86,14 @@
                             </div>
                         </div>
                         
-                        <button type="button" class="btn btn-primary w-100" id="checkUrlBtn">Check URL</button>
-                        
-                        <div id="titleSection" class="mt-4" style="display: none;">
-                            <div class="mb-3">
-                            </div>
-                            <button type="button" class="btn btn-success w-100" id="postBtn">Post</button>
+                        <div class="mb-3">
+                            <p class="form-text text-muted">
+                                By posting a link, I agree to the <a href="{% url 'terms_and_conditions' %}" target="_blank">Terms and Conditions</a> and <a href="{% url 'privacy_policy' %}" target="_blank">Privacy Policy</a>
+                            </p>
                         </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100" id="postBtn">Post</button>
                     </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="agreementModal" tabindex="-1" aria-labelledby="agreementModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="agreementModalLabel">Terms and Posting Rules</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="agreement-content">
-                        <h6>By posting on this platform, you agree to the following:</h6>
-                        
-                        <div class="mt-3">
-                            <h6>Allowed Platforms:</h6>
-                            <ul>
-                                <li>YouTube Shorts (youtube.com)</li>
-                                <li>Tiktok Videos (tiktok.com)</li>
-                            </ul>
-                        </div>
-                        
-                        <div class="mt-3">
-                            <p>You must also agree to our <a href="{% url 'terms_and_conditions' %}" target="_blank">Terms and Conditions</a> and <a href="{% url 'privacy_policy' %}" target="_blank">Privacy Policy</a>.</p>
-                        </div>
-                        
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" id="agreementCheck">
-                            <label class="form-check-label" for="agreementCheck">
-                                I have read and agree to all terms, conditions, and posting rules
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="agreeAndContinueBtn" disabled>Agree and Continue</button>
                 </div>
             </div>
         </div>

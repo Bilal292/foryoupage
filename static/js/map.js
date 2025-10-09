@@ -1,12 +1,10 @@
 window.openRandomPinPopup = false;
 window.randomPinId = null;
 window.isGoingToRandomPin = false;
-window.hasAgreedThisSession = sessionStorage.getItem('hasAgreedToTerms') === 'true';
 
 let selectedCoordinates = null;
 let mapClickHandler = null;
 let pinModal = null;
-let agreementModal = null;
 
 // Get CSRF token for Django
 function getCookie(name) {
@@ -388,12 +386,9 @@ map.on('moveend', function() {
     loadPins();
 });
 
-// Reset form function - moved to global scope
+// Reset form function
 function resetForm() {
     document.getElementById("linkInput").value = "";
-    const titleSection = document.getElementById("titleSection");
-    if (titleSection) titleSection.style.display = "none";
-    
     const pinForm = document.getElementById("pinForm");
     if (pinForm) pinForm.classList.remove('was-validated');
     
@@ -444,13 +439,7 @@ map.on('click', function(e) {
     selectedCoordinates = { lat, lng };
     
     // Open the modal with selected coordinates
-    if (window.hasAgreedThisSession) {
-        openPinModal();
-    } else {
-        if (agreementModal) {
-            agreementModal.show();
-        }
-    }
+    openPinModal();
 });
 
 // Initial load
@@ -460,19 +449,14 @@ map.whenReady(loadPins);
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap modal
     pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-    agreementModal = new bootstrap.Modal(document.getElementById('agreementModal'));
 
     // Random pin button functionality
     const randomPinBtn = document.getElementById("randomPinBtn");
     
     // UI elements
     const openFormBtn = document.getElementById("openFormBtn");
-    const pinForm = document.getElementById("pinForm");
-    const titleSection = document.getElementById("titleSection");
     const toastEl = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
-    const agreementCheck = document.getElementById('agreementCheck');
-    const agreeAndContinueBtn = document.getElementById('agreeAndContinueBtn');
 
     randomPinBtn.addEventListener("click", function() {
         // Show loading indicator
@@ -536,45 +520,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {
         selectedCoordinates = null; // Clear any previously selected coordinates
-        
-        if (window.hasAgreedThisSession) {
-            openPinModal();
-        } else {
-            if (agreementModal) {
-                agreementModal.show();
-            }
-        }
-    });
-
-    // Enable/disable "Agree and Continue" button based on checkbox
-    agreementCheck.addEventListener('change', function() {
-        agreeAndContinueBtn.disabled = !this.checked;
-    });
-    
-    // Handle "Agree and Continue" button click
-    agreeAndContinueBtn.addEventListener('click', function() {
-        if (agreementCheck.checked) {
-            // Remember agreement for this session
-            sessionStorage.setItem('hasAgreedToTerms', 'true');
-            window.hasAgreedThisSession = true;
-            
-            // Hide agreement modal and show pin modal
-            if (agreementModal) {
-                agreementModal.hide();
-            }
-            openPinModal();
-        }
+        openPinModal();
     });
     
     // Reset form when modal is hidden
     document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
         resetForm();
-    });
-
-    // Reset agreement check when agreement modal is hidden
-    document.getElementById('agreementModal').addEventListener('hidden.bs.modal', () => {
-        agreementCheck.checked = false;
-        agreeAndContinueBtn.disabled = true;
     });
     
     function showToast(message, type = 'success') {
@@ -593,38 +544,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const toast = new bootstrap.Toast(toastEl);
         toast.show();
     }
-    
-    // Check URL button click
-    document.getElementById("checkUrlBtn").addEventListener("click", function() {
-        const linkInput = document.getElementById("linkInput");
-        
-        if (!linkInput.value) {
-            linkInput.classList.add('is-invalid');
-            return;
-        }
-        
-        linkInput.classList.remove('is-invalid');
-        
-        fetch("/api/pins/create/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrftoken
-            },
-            body: JSON.stringify({ link: linkInput.value, check_only: true })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.platform) {
-                titleSection.style.display = "block";
-            } else {
-                showToast(`❌ ${data.error}`, "error");
-            }
-        })
-        .catch(error => {
-            showToast("❌ Network error. Please try again.", "error");
-        });
-    });
 
     function getClientLocation() {
         return new Promise((resolve, reject) => {
@@ -644,10 +563,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Post button click
-    document.getElementById("postBtn").addEventListener("click", async function() {
+    // Form submission
+    document.getElementById("pinForm").addEventListener("submit", async function(e) {
+        e.preventDefault(); // Prevent form submission
+        
         const linkInput = document.getElementById("linkInput");
         
+        // Validate form
         if (!linkInput.value) {
             linkInput.classList.add('is-invalid');
             return;
@@ -655,17 +577,22 @@ document.addEventListener('DOMContentLoaded', function() {
         
         linkInput.classList.remove('is-invalid');
         
-        // Determine location type based on selected option
-        const locationType = document.querySelector('input[name="locationOption"]:checked').value;
+        // Determine location type
+        const locationType = document.querySelector('input[name="locationOption"]:checked');
+        if (!locationType) {
+            showToast("❌ Please select a location option", "error");
+            return;
+        }
+        
         let requestData = {
             link: linkInput.value,
-            location_type: locationType
+            location_type: locationType.value
         };
         
-        if (locationType === "selected" && selectedCoordinates) {
+        if (locationType.value === "selected" && selectedCoordinates) {
             requestData.latitude = selectedCoordinates.lat;
             requestData.longitude = selectedCoordinates.lng;
-        } else if (locationType === "current") {
+        } else if (locationType.value === "current") {
             try {
                 const position = await getClientLocation();
                 requestData.latitude = position.latitude;
@@ -675,7 +602,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
         }
-        // For "random" location, no additional data is needed
+        
+        // Show loading state
+        const postBtn = document.getElementById("postBtn");
+        const originalBtnText = postBtn.innerHTML;
+        postBtn.disabled = true;
+        postBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Posting...';
         
         fetch("/api/pins/create/", {
             method: "POST",
@@ -703,11 +635,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     duration: 1
                 });
             } else {
-                showToast("❌ Error posting pin", "error");
+                showToast(`❌ ${data.error || "Error posting pin"}`, "error");
             }
         })
         .catch(error => {
             showToast("❌ Network error. Please try again.", "error");
+        })
+        .finally(() => {
+            // Reset button state
+            postBtn.disabled = false;
+            postBtn.innerHTML = originalBtnText;
         });
     });
 });
