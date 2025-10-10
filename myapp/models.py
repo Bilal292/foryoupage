@@ -34,3 +34,11 @@ class TikTokPin(models.Model):
     def __str__(self):
         return f"TikTok pin: {self.url}"
     
+class InstagramPin(models.Model):
+    pin = models.OneToOneField(Pin, on_delete=models.CASCADE, related_name='instagram_pin')
+    url = models.URLField()
+    shortcode = models.CharField(max_length=255)  # Instagram shortcode
+
+    def __str__(self):
+        return f"Instagram pin: {self.url}"
+    

@@ -5,6 +5,8 @@ window.isGoingToRandomPin = false;
 let selectedCoordinates = null;
 let mapClickHandler = null;
 let pinModal = null;
+let isPopupOpen = false;
+let justClosedPopup = false; 
 
 // Get CSRF token for Django
 function getCookie(name) {
@@ -149,12 +151,28 @@ function createPopupContent(pin) {
             embedHtml = `<div class="popup-link">${url}</div>`;
         }
     }
+    else if (pin.platform && pin.platform.toLowerCase() === 'instagram' && url) {
+        const shortcode = pin.platform_data?.shortcode || '';
+
+        if (shortcode) {
+            embedHtml = `
+                <blockquote 
+                    class="instagram-media" 
+                    data-instgrm-permalink="${url}" 
+                    data-instgrm-version="14"
+                    style="max-width: 605px; min-width: 325px; min-height: 560px;">
+                </blockquote>
+            `;
+        } else {
+            embedHtml = `<div class="popup-link">${url}</div>`;
+        }
+    }
     
     // If no embed available, show the link
     if (!embedHtml && url) {
         embedHtml = `<div class="popup-link">${url}</div>`;
     }
-    
+
     return `
         <div class="custom-popup">
             <div class="popup-content">
@@ -306,14 +324,16 @@ map.on('popupopen', function(e) {
     isAdjustingForPopup = true;
     isOpeningPopup = true;
     userInteracted = false;
+    isPopupOpen = true;
+    justClosedPopup = false; // Reset the flag when a popup opens
 
     // Wait a moment for DOM to settle
     setTimeout(() => {
         const popupElement = e.popup.getElement();
         if (popupElement) {
             // Look for TikTok embeds inside the popup
-            const embeds = popupElement.querySelectorAll('.tiktok-embed');
-            if (embeds.length > 0) {
+            const tiktokEmbeds = popupElement.querySelectorAll('.tiktok-embed');
+            if (tiktokEmbeds.length > 0) {
                 // If TikTok script has already loaded, force it to re-render
                 if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
                     window.tiktokEmbed.render();
@@ -325,6 +345,26 @@ map.on('popupopen', function(e) {
                     script.onload = function() {
                         if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
                             window.tiktokEmbed.render();
+                        }
+                    };
+                    document.body.appendChild(script);
+                }
+            }
+            
+            // Look for Instagram embeds inside the popup
+            const instagramEmbeds = popupElement.querySelectorAll('.instagram-media');
+            if (instagramEmbeds.length > 0) {
+                // If Instagram script has already loaded, force it to re-render
+                if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
+                    window.instgrm.Embeds.process();
+                } else {
+                    // If not yet loaded, load it now
+                    const script = document.createElement('script');
+                    script.src = "https://www.instagram.com/embed.js";
+                    script.async = true;
+                    script.onload = function() {
+                        if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
+                            window.instgrm.Embeds.process();
                         }
                     };
                     document.body.appendChild(script);
@@ -351,6 +391,13 @@ map.on('popupclose', function(e) {
     if (currentPopup === e.popup) {
         currentPopup = null;
     }
+    isPopupOpen = false;
+    justClosedPopup = true; // Set the flag when a popup closes
+    
+    // Reset the flag after a short delay
+    setTimeout(() => {
+        justClosedPopup = false;
+    }, 300);
 });
 
 // Handle map events
@@ -436,6 +483,19 @@ function openPinModal() {
 
 // Add click event listener to the map
 map.on('click', function(e) {
+    // If we just closed a popup, don't open the modal
+    if (justClosedPopup) {
+        justClosedPopup = false; // Reset the flag
+        return;
+    }
+    
+    // If a popup is currently open, close it
+    if (isPopupOpen && currentPopup && currentPopup.isOpen()) {
+        currentPopup.close();
+        return;
+    }
+    
+    // Otherwise, proceed with opening the modal
     const { lat, lng } = e.latlng;
     selectedCoordinates = { lat, lng };
     

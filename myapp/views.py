@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Pin, YouTubePin, TikTokPin
+from .models import Pin, YouTubePin, TikTokPin, InstagramPin
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
@@ -16,18 +16,48 @@ from datetime import datetime
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+from urllib.parse import urlparse, urlunparse
 
 
 ALLOWED_PLATFORMS = {
     "tiktok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
     "youtube_shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
-    #instagram soon
+    "instagram": r"(?:www\.)?instagram\.com/(p|reel)/",
 }
 
 
 # ----------------------------
 # Utilities
 # ----------------------------
+
+def clean_instagram_url(url):
+    """Remove query parameters from Instagram URL to get the base URL"""
+    
+    # Parse the URL
+    parsed_url = urlparse(url)
+    
+    # Reconstruct the URL without query parameters and fragment
+    clean_url = urlunparse((
+        parsed_url.scheme,  # scheme
+        parsed_url.netloc,  # netloc
+        parsed_url.path,    # path
+        '',                 # params
+        '',                 # query
+        ''                  # fragment
+    ))
+    
+    return clean_url
+
+def extract_instagram_shortcode(url):
+    """Extract Instagram shortcode from URL"""
+    # First clean the URL to remove query parameters
+    clean_url = clean_instagram_url(url)
+    
+    # Now extract the shortcode
+    match = re.search(r'instagram\.com/(p|reel)/([^/?]+)', clean_url)
+    if match:
+        return match.group(2)  # Return the shortcode
+    return None
 
 def resolve_tiktok_url(url):
     """
@@ -182,7 +212,8 @@ def create_pin(request):
     if check_only:
         platform_display = {
             "youtube_shorts": "YouTube Shorts",
-            "tiktok": "TikTok"
+            "tiktok": "TikTok",
+            "instagram": "Instagram"
         }.get(link_platform, "Unknown")
         return Response({"message": "Valid link", "platform": platform_display})
 
@@ -270,6 +301,34 @@ def create_pin(request):
             "platform": "TikTok",
             "url": tiktok_pin.url,
             "video_id": tiktok_pin.video_id
+        }
+        return Response(serializer_data)
+    elif link_platform == "instagram":
+        # Clean the URL to remove query parameters
+        clean_url = clean_instagram_url(link)
+        
+        # Extract Instagram shortcode
+        shortcode = extract_instagram_shortcode(link)
+        if not shortcode:
+            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+            return Response({"error": "Could not extract Instagram shortcode"}, status=400)
+        
+        # Create InstagramPin with the clean URL
+        instagram_pin = InstagramPin.objects.create(
+            pin=pin,
+            url=clean_url,  # Use the clean URL
+            shortcode=shortcode
+        )
+        
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "Instagram",
+            "url": instagram_pin.url,
+            "shortcode": instagram_pin.shortcode
         }
         return Response(serializer_data)
     
@@ -368,6 +427,34 @@ def create_secret_pin(request):
             "platform": "TikTok",
             "url": tiktok_pin.url,
             "video_id": tiktok_pin.video_id
+        }
+        return Response(serializer_data)
+    elif link_platform == "instagram":
+        # Clean the URL to remove query parameters
+        clean_url = clean_instagram_url(link)
+        
+        # Extract Instagram shortcode
+        shortcode = extract_instagram_shortcode(link)
+        if not shortcode:
+            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
+            return Response({"error": "Could not extract Instagram shortcode"}, status=400)
+        
+        # Create InstagramPin with the clean URL
+        instagram_pin = InstagramPin.objects.create(
+            pin=pin,
+            url=clean_url,  # Use the clean URL
+            shortcode=shortcode
+        )
+        
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "Instagram",
+            "url": instagram_pin.url,
+            "shortcode": instagram_pin.shortcode
         }
         return Response(serializer_data)
     
