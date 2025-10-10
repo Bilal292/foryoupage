@@ -47,22 +47,17 @@ def resolve_tiktok_url(url):
         return url
 
 def extract_tiktok_video_id(url):
-    """Extract TikTok video ID from URL"""
+    """Extract TikTok video/photo ID from URL"""
     # If it's a shortened URL, resolve it first
     if 'vm.tiktok.com' in url or 'vt.tiktok.com' in url:
         url = resolve_tiktok_url(url)
     
-    # Extract video ID from standard URL format
-    match = re.search(r'tiktok\.com/@[^/]+/video/(\d+)', url)
+    # Extract content ID from both video and photo URL formats
+    match = re.search(r'tiktok\.com/@[^/]+/(video|photo)/(\d+)', url)
     if match:
-        return match.group(1)
+        return match.group(2)  # Return the ID part
     
     return None
-
-def is_tiktok_photo_url(url):
-    """Check if a URL is a TikTok photo URL"""
-    photo_pattern = r"(?:www\.)?tiktok\.com/@[^/]+/photo/"
-    return bool(re.search(photo_pattern, url, re.IGNORECASE))
 
 def validate_and_sanitize_url(url):
     """Validate and sanitize URL to prevent security issues"""
@@ -184,10 +179,6 @@ def create_pin(request):
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
 
-    # Check if it's a TikTok photo URL
-    if link_platform == "tiktok" and is_tiktok_photo_url(link):
-        return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
-
     if check_only:
         platform_display = {
             "youtube_shorts": "YouTube Shorts",
@@ -257,17 +248,17 @@ def create_pin(request):
         # Resolve TikTok URL to full URL
         resolved_url = resolve_tiktok_url(link)
         
-        # Extract video ID
-        video_id = extract_tiktok_video_id(resolved_url)
-        if not video_id:
+        # Extract content ID (works for both videos and photos)
+        content_id = extract_tiktok_video_id(resolved_url)
+        if not content_id:
             pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
-            return Response({"error": "Could not extract TikTok video ID"}, status=400)
+            return Response({"error": "Could not extract TikTok content ID"}, status=400)
         
         # Create TikTokPin with minimal data
         tiktok_pin = TikTokPin.objects.create(
             pin=pin,
             url=resolved_url,
-            video_id=video_id
+            video_id=content_id
         )
         
         serializer_data = {
@@ -300,10 +291,6 @@ def create_secret_pin(request):
     link_platform = get_link_platform(link)
     if not link_platform:
         return Response({"error": "This platform is not allowed."}, status=400)
-
-    # Check if it's a TikTok photo URL
-    if link_platform == "tiktok" and is_tiktok_photo_url(link):
-        return Response({"error": "TikTok photos are not allowed. Only videos are supported."}, status=400)
 
     # Regions with higher population density (for weighted random selection)
     regions = [
@@ -359,17 +346,17 @@ def create_secret_pin(request):
         # Resolve TikTok URL to full URL
         resolved_url = resolve_tiktok_url(link)
         
-        # Extract video ID
-        video_id = extract_tiktok_video_id(resolved_url)
-        if not video_id:
+        # Extract content ID (works for both videos and photos)
+        content_id = extract_tiktok_video_id(resolved_url)
+        if not content_id:
             pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
-            return Response({"error": "Could not extract TikTok video ID"}, status=400)
+            return Response({"error": "Could not extract TikTok content ID"}, status=400)
         
         # Create TikTokPin with minimal data
         tiktok_pin = TikTokPin.objects.create(
             pin=pin,
             url=resolved_url,
-            video_id=video_id
+            video_id=content_id
         )
         
         serializer_data = {

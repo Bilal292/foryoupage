@@ -129,7 +129,8 @@ function createPopupContent(pin) {
                 </div>
             `;
         }
-    } else if (pin.platform && pin.platform.toLowerCase() === 'tiktok' && url) {
+    } 
+    else if (pin.platform && pin.platform.toLowerCase() === 'tiktok' && url) {
         const videoId = pin.platform_data?.video_id || '';
 
         if (videoId) {
