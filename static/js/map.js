@@ -160,7 +160,7 @@ function createPopupContent(pin) {
                     class="instagram-media" 
                     data-instgrm-permalink="${url}" 
                     data-instgrm-version="14"
-                    style="max-width: 605px; min-width: 325px; min-height: 560px;">
+                    style="max-width: 605px; min-width: 325px; min-height: 570px;">
                 </blockquote>
             `;
         } else {
@@ -184,6 +184,11 @@ function createPopupContent(pin) {
     `;
 }
 
+L.Popup.prototype._closeIfOutOfView = function() {
+    // Override the default behavior to prevent popup from closing automatically on smaller screens
+    return;
+};
+
 // Store pin data in markers to identify them later
 function createMarkerWithPin(pin) {
     let marker = L.marker([pin.latitude, pin.longitude]);
@@ -202,7 +207,7 @@ function createMarkerWithPin(pin) {
         maxWidth: 350,
         className: 'custom-popup-container',
         autoClose: false,  
-        closeButton: true 
+        closeButton: false 
     });
     return marker;
 }
@@ -327,6 +332,12 @@ map.on('popupopen', function(e) {
     isPopupOpen = true;
     justClosedPopup = false; // Reset the flag when a popup opens
 
+    // Show the close button
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
+    if (popupCloseBtn) {
+        popupCloseBtn.style.display = 'flex';
+    }
+
     // Wait a moment for DOM to settle
     setTimeout(() => {
         const popupElement = e.popup.getElement();
@@ -393,6 +404,12 @@ map.on('popupclose', function(e) {
     }
     isPopupOpen = false;
     justClosedPopup = true; // Set the flag when a popup closes
+    
+    // Hide the close button
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
+    if (popupCloseBtn) {
+        popupCloseBtn.style.display = 'none';
+    }
     
     // Reset the flag after a short delay
     setTimeout(() => {
@@ -518,6 +535,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const openFormBtn = document.getElementById("openFormBtn");
     const toastEl = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
+
+    // Popup close button functionality
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
+    if (popupCloseBtn) {
+        popupCloseBtn.addEventListener('click', function() {
+            if (currentPopup && currentPopup.isOpen()) {
+                currentPopup.close();
+            }
+        });
+    }
 
     randomPinBtn.addEventListener("click", function() {
         // Show loading indicator

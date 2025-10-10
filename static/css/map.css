@@ -29,13 +29,79 @@ body {
     font-size: 14px;
 }
 
-/* Floating action button */
-.fab {
+/* Button container - holds all three buttons */
+.button-container {
     position: fixed;
     bottom: 20px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Popup close button */
+.popup-close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.popup-close-btn:hover {
+    background-color: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+}
+
+.popup-close-btn i {
+    color: #333;
+    font-size: 18px;
+}
+
+/* Random Pin Button */
+.random-pin-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s ease;
+}
+
+.random-pin-btn:hover {
+    background-color: #5a6268;
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+.random-pin-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.random-pin-btn.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* Floating action button */
+.fab {
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background-color: #0d6efd;
     color: white;
@@ -46,7 +112,6 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 24px;
-    z-index: 1000;
     transition: all 0.3s ease;
 }
 
@@ -377,49 +442,6 @@ body {
     width: auto !important;
 }
 
-/* Random Pin Button */
-.random-pin-btn {
-    position: fixed;
-    bottom: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    z-index: 1000;
-    transition: all 0.3s ease;
-}
-
-.random-pin-btn:hover {
-    background-color: #5a6268;
-    transform: translateX(-50%) scale(1.05);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-}
-
-.fab {
-    right: 20px;
-    left: auto;
-    transform: none;
-}
-
-.random-pin-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.random-pin-btn.loading {
-    animation: pulse 1.5s infinite;
-}
-
 @keyframes pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(108, 117, 125, 0.7);
@@ -449,12 +471,30 @@ body {
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-    .fab {
+    .button-container {
         bottom: 15px;
-        right: 15px;
+        gap: 10px;
+    }
+    
+    .fab {
         width: 50px;
         height: 50px;
         font-size: 20px;
+    }
+    
+    .random-pin-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+    }
+    
+    .popup-close-btn {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .popup-close-btn i {
+        font-size: 16px;
     }
     
     .modal-dialog {

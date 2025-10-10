@@ -38,15 +38,23 @@
     <!-- Map Container -->
     <div id="map"></div>
     
-    <!-- Floating Action Button -->
-    <button class="fab" id="openFormBtn" title="Post a link">
-        <i class="fas fa-plus"></i>
-    </button>
-
-    <!-- Random Pin Button -->
-    <button class="random-pin-btn" id="randomPinBtn" title="Go to random pin">
-        <i class="fas fa-random"></i>
-    </button>
+    <!-- Button Container - holds all three buttons -->
+    <div class="button-container">
+        <!-- Popup Close Button -->
+        <button class="popup-close-btn" id="popupCloseBtn" title="Close popup">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <!-- Random Pin Button -->
+        <button class="random-pin-btn" id="randomPinBtn" title="Go to random pin">
+            <i class="fas fa-random"></i>
+        </button>
+        
+        <!-- Floating Action Button -->
+        <button class="fab" id="openFormBtn" title="Post a link">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
     
     <!-- Modal -->
     <div class="modal fade" id="pinModal" tabindex="-1" aria-labelledby="pinModalLabel" aria-hidden="true">
