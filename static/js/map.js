@@ -332,6 +332,12 @@ map.on('popupopen', function(e) {
     isPopupOpen = true;
     justClosedPopup = false; // Reset the flag when a popup opens
 
+    // Hide the search bar when popup opens
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.add('hidden');
+    }
+
     // Show the close button
     const popupCloseBtn = document.getElementById('popupCloseBtn');
     if (popupCloseBtn) {
@@ -404,6 +410,12 @@ map.on('popupclose', function(e) {
     }
     isPopupOpen = false;
     justClosedPopup = true; // Set the flag when a popup closes
+    
+    // Show the search bar when popup closes
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.remove('hidden');
+    }
     
     // Hide the close button
     const popupCloseBtn = document.getElementById('popupCloseBtn');
@@ -547,6 +559,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     randomPinBtn.addEventListener("click", function() {
+        // Hide the search bar when loading random pin
+        const searchContainer = document.querySelector('.search-container');
+        if (searchContainer) {
+            searchContainer.classList.add('hidden');
+        }
+        
         // Show loading indicator
         randomPinBtn.disabled = true;
         randomPinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -563,6 +581,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast(`❌ ${pin.error}`, "error");
                     randomPinBtn.disabled = false;
                     randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                    
+                    // Show the search bar again if there was an error
+                    if (searchContainer) {
+                        searchContainer.classList.remove('hidden');
+                    }
                     return;
                 }
                 
@@ -588,12 +611,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                 // Success! Reset button
                                 randomPinBtn.disabled = false;
                                 randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                                
+                                // The search bar will be hidden by the popupopen event handler
                             })
                             .catch(error => {
                                 console.error("Error zooming to pin:", error);
                                 showToast("⚠️ Could not zoom to pin", "warning");
                                 randomPinBtn.disabled = false;
                                 randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                                
+                                // Show the search bar again if there was an error
+                                if (searchContainer) {
+                                    searchContainer.classList.remove('hidden');
+                                }
                             });
                     }, 1000);
                 }, 1600);
@@ -602,18 +632,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 showToast("❌ Error fetching random pin", "error");
                 randomPinBtn.disabled = false;
                 randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                
+                // Show the search bar again if there was an error
+                if (searchContainer) {
+                    searchContainer.classList.remove('hidden');
+                }
             });
     });
 
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {
         selectedCoordinates = null; // Clear any previously selected coordinates
+        
+        // Hide the search bar when modal opens
+        const searchContainer = document.querySelector('.search-container');
+        if (searchContainer) {
+            searchContainer.classList.add('hidden');
+        }
+        
         openPinModal();
     });
     
     // Reset form when modal is hidden
     document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
         resetForm();
+        
+        // Show the search bar when modal closes
+        const searchContainer = document.querySelector('.search-container');
+        if (searchContainer) {
+            searchContainer.classList.remove('hidden');
+        }
     });
     
     function showToast(message, type = 'success') {
@@ -736,3 +784,159 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Search functionality
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+let debounceTimer;
+
+// Function to fetch search results from Photon API
+function fetchSearchResults(query) {
+    if (!query) {
+        searchResults.style.display = 'none';
+        return;
+    }
+
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            displaySearchResults(data.features);
+        })
+        .catch(error => {
+            console.error('Error fetching search results:', error);
+            // Show error message in search results
+            searchResults.innerHTML = `
+                <div class="search-result-item">
+                    Error fetching results. Please try again.
+                </div>
+            `;
+            searchResults.style.display = 'block';
+        });
+}
+
+// Function to display search results
+function displaySearchResults(features) {
+    searchResults.innerHTML = '';
+
+    if (features.length === 0) {
+        searchResults.innerHTML = `
+            <div class="search-result-item">
+                No locations found. Try a different search.
+            </div>
+        `;
+        searchResults.style.display = 'block';
+        return;
+    }
+
+    features.forEach(feature => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        
+        // Format the display name using properties
+        const properties = feature.properties;
+        let name = properties.name || '';
+        if (properties.city) name += `, ${properties.city}`;
+        if (properties.country) name += `, ${properties.country}`;
+
+        item.textContent = name;
+
+        item.addEventListener('click', () => {
+            // Get the coordinates and pan the map
+            const [lon, lat] = feature.geometry.coordinates;
+            map.setView([lat, lon], 13, {
+                animate: true,
+                duration: 1
+            });
+
+            // Hide the search results
+            searchResults.style.display = 'none';
+            searchInput.value = name;
+        });
+
+        searchResults.appendChild(item);
+    });
+
+    searchResults.style.display = 'block';
+}
+
+// Event listener for search input with debounce
+searchInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const query = e.target.value.trim();
+
+    debounceTimer = setTimeout(() => {
+        fetchSearchResults(query);
+    }, 300); // 300ms debounce
+});
+
+// Hide search results when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+        searchResults.style.display = 'none';
+    }
+});
+
+// Prevent search results from closing when clicking inside them
+searchResults.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// Add a clear button to the search input
+function addClearButton() {
+    const searchContainer = document.querySelector('.search-bar');
+    const clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.className = 'search-clear';
+    clearButton.innerHTML = '&times;';
+    clearButton.style.cssText = `
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #666;
+        display: none;
+        z-index: 2;
+        transition: color 0.2s ease;
+    `;
+    
+    // Add hover effect
+    clearButton.addEventListener('mouseenter', function() {
+        this.style.color = '#333';
+    });
+    
+    clearButton.addEventListener('mouseleave', function() {
+        this.style.color = '#666';
+    });
+    
+    searchContainer.appendChild(clearButton);
+    
+    // Function to update clear button visibility
+    function updateClearButtonVisibility() {
+        clearButton.style.display = searchInput.value ? 'block' : 'none';
+    }
+    
+    // Show/hide clear button based on input
+    searchInput.addEventListener('input', updateClearButtonVisibility);
+    
+    // Clear input when button is clicked
+    clearButton.addEventListener('click', function(e) {
+        e.preventDefault(); // Prevent form submission if inside a form
+        searchInput.value = '';
+        searchResults.style.display = 'none';
+        searchInput.focus(); // Return focus to the input field
+        updateClearButtonVisibility(); // Immediately hide the clear button
+    });
+    
+    // Initialize visibility
+    updateClearButtonVisibility();
+}
+
+// Initialize clear button
+addClearButton();

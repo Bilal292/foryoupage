@@ -441,18 +441,7 @@ body {
     /* Allow wider popups */
     max-width: 350px;
     width: auto !important;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(108, 117, 125, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(108, 117, 125, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(108, 117, 125, 0);
-    }
+    z-index: 1001;
 }
 
 /* Location options styling */
@@ -468,6 +457,88 @@ body {
 #selectedLocationInfo {
     font-style: italic;
     margin-top: 0.25rem;
+}
+
+/* Search Bar Styles */
+.search-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500; /* Lower z-index to be behind other elements */
+    width: 300px;
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* Add transition */
+    opacity: 1;
+    visibility: visible;
+}
+
+.search-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Prevent interaction when hidden */
+}
+
+.search-bar {
+    position: relative;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    outline: none;
+    color: #333;
+    backdrop-filter: blur(5px); /* Adds a subtle blur effect */
+    transition: all 0.3s ease;
+}
+
+#searchInput:focus {
+    background-color: rgba(255, 255, 255, 0.9); /* More opaque when focused */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+#searchInput::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95); /* Semi-transparent background */
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1001;
+    margin-top: 5px;
+    display: none;
+    backdrop-filter: blur(10px); /* Adds a subtle blur effect */
+}
+
+.search-result-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background-color 0.2s ease;
+}
+
+.search-result-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+/* Reposition zoom controls to middle left */
+.leaflet-control-zoom {
+    top: 70px !important;
 }
 
 /* Mobile adjustments */
@@ -519,5 +590,36 @@ body {
     
     .agreement-content {
         max-height: 50vh;
+    }
+
+    .search-container {
+        width: 85%; 
+        max-width: 350px;
+        top: 10px;
+    }
+    
+    #searchInput {
+        padding: 12px 15px; 
+        font-size: 16px; 
+    }
+    
+    .search-results {
+        max-height: 250px; 
+    }
+    
+    .search-result-item {
+        padding: 12px 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-container {
+        width: 90%;
+        top: 5px;
+    }
+    
+    #searchInput {
+        padding: 10px 12px;
+        font-size: 14px;
     }
 }

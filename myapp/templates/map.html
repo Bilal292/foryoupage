@@ -35,6 +35,18 @@
     
 </head>
 <body>
+    
+    <!-- Search Bar Container -->
+    <div class="search-container">
+        <div class="search-bar">
+            <div style="position: relative; display: flex; align-items: center;">
+                <i class="fas fa-search" style="position: absolute; left: 15px; color: rgba(0,0,0,0.5); z-index: 2;"></i>
+                <input type="text" id="searchInput" placeholder="Search for a location..." autocomplete="off" style="padding-left: 40px;">
+            </div>
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+
     <!-- Map Container -->
     <div id="map"></div>
     
