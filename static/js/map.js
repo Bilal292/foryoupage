@@ -798,7 +798,7 @@ function fetchSearchResults(query) {
         return;
     }
 
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`;
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=3`;
 
     fetch(url)
         .then(response => response.json())
@@ -869,7 +869,7 @@ searchInput.addEventListener('input', (e) => {
 
     debounceTimer = setTimeout(() => {
         fetchSearchResults(query);
-    }, 300); // 300ms debounce
+    }, 1000); // 1s debounce
 });
 
 // Hide search results when clicking outside
