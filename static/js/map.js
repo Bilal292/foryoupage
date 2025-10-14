@@ -99,7 +99,7 @@ function initializeMap() {
         maxZoom: 18,
         maxBounds: [[-90, -180], [90, 180]],
         maxBoundsViscosity: 1.0
-    }).setView([50, 0], 3);
+    }).setView([50, 0], 4);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
