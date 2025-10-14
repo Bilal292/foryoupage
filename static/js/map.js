@@ -19,7 +19,7 @@ let markers = null;
 let csrftoken = null;
 
 // ===== ZOOM LEVEL CONTROL =====
-const MIN_ZOOM_LEVEL_FOR_PINS = 5; // Minimum zoom level to load pins
+const MIN_ZOOM_LEVEL_FOR_PINS = 4; // Minimum zoom level to load pins
 let zoomLevelIndicator = null; // Will hold the indicator element
 
 // ===== UTILITY FUNCTIONS =====
