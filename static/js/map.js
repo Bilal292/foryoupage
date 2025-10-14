@@ -18,6 +18,10 @@ let map = null;
 let markers = null;
 let csrftoken = null;
 
+// ===== ZOOM LEVEL CONTROL =====
+const MIN_ZOOM_LEVEL_FOR_PINS = 5; // Minimum zoom level to load pins
+let zoomLevelIndicator = null; // Will hold the indicator element
+
 // ===== UTILITY FUNCTIONS =====
 function getCookie(name) {
     let cookieValue = null;
@@ -91,11 +95,11 @@ function resetForm() {
 function initializeMap() {
     // Initialize map
     map = L.map('map', {
-        minZoom: 4,
+        minZoom: 2, // Allow zooming all the way out
         maxZoom: 18,
         maxBounds: [[-90, -180], [90, 180]],
         maxBoundsViscosity: 1.0
-    }).setView([50, 0], 4);
+    }).setView([50, 0], 3);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
@@ -113,8 +117,11 @@ function initializeMap() {
     // Set up event listeners
     setupMapEventListeners();
     
-    // Initial load
-    map.whenReady(loadPins);
+    // Initialize zoom level indicator
+    initializeZoomLevelIndicator();
+    
+    // Check initial zoom level
+    updateZoomLevelIndicator();
 }
 
 // ===== MAP EVENT LISTENERS =====
@@ -262,10 +269,14 @@ function handleMapMoveEnd() {
         currentPopup = null;
     }
     
-    // Always reload pins when the map moves
-    loadPins();
+    // Update zoom level indicator
+    updateZoomLevelIndicator();
+    
+    // Only load pins if zoom level is sufficient
+    if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PINS) {
+        loadPins();
+    }
 }
-
 function handleMapClick(e) {
     // If we just closed a popup, don't open the modal
     if (justClosedPopup) {
@@ -517,6 +528,11 @@ function loadPins() {
         console.error("Map or markers not initialized");
         return;
     }
+    
+    // Check if zoom level is sufficient
+    if (map.getZoom() < MIN_ZOOM_LEVEL_FOR_PINS) {
+        return; // Don't load pins if zoom level is too low
+    }
 
     // Check if there's an open popup and remember its pin data
     let openPopupPin = null;
@@ -743,6 +759,11 @@ function handleRandomPinClick() {
     const searchContainer = document.querySelector('.search-container');
     if (searchContainer) {
         searchContainer.classList.add('hidden');
+    }
+    
+    // Hide zoom level indicator
+    if (zoomLevelIndicator) {
+        zoomLevelIndicator.classList.add('hidden');
     }
     
     // Show loading indicator
@@ -980,6 +1001,46 @@ function addClearButton() {
     
     // Initialize visibility
     updateClearButtonVisibility();
+}
+
+// ===== ZOOM LEVEL INDICATOR FUNCTIONS =====
+function initializeZoomLevelIndicator() {
+    // Create the zoom level indicator element if it doesn't exist
+    if (!zoomLevelIndicator) {
+        zoomLevelIndicator = document.getElementById('zoomLevelIndicator');
+        
+        // Add zoom event listener
+        map.on('zoomend', updateZoomLevelIndicator);
+    }
+}
+
+function updateZoomLevelIndicator() {
+    if (!map || !zoomLevelIndicator) return;
+    
+    const currentZoom = map.getZoom();
+    
+    if (currentZoom < MIN_ZOOM_LEVEL_FOR_PINS) {
+        // Show indicator
+        zoomLevelIndicator.classList.remove('hidden');
+        
+        // Calculate progress percentage
+        const minZoom = map.getMinZoom();
+        const maxZoom = MIN_ZOOM_LEVEL_FOR_PINS;
+        const progress = ((currentZoom - minZoom) / (maxZoom - minZoom)) * 100;
+        
+        // Update progress bar
+        const progressBar = zoomLevelIndicator.querySelector('.zoom-progress-bar');
+        progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+        
+        // Clear existing markers if zoom level is too low
+        if (markers) {
+            markers.clearLayers();
+        }
+    } else {
+        // Hide indicator and load pins
+        zoomLevelIndicator.classList.add('hidden');
+        loadPins();
+    }
 }
 
 // ===== INITIALIZATION =====
