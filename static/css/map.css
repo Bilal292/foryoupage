@@ -1,3 +1,4 @@
+/* ===== BASE STYLES ===== */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
@@ -10,25 +11,7 @@ body {
     cursor: default !important;
 }
 
-/* Marker cluster custom styling */
-.marker-cluster {
-    background-color: rgba(13, 110, 253, 0.6);
-    border-radius: 50%;
-    text-align: center;
-    color: white;
-    font-weight: bold;
-}
-
-.marker-cluster div {
-    background-color: rgba(13, 110, 253, 0.8);
-    border-radius: 50%;
-    margin: 5px;
-    width: 30px;
-    height: 30px;
-    line-height: 30px;
-    font-size: 14px;
-}
-
+/* ===== BUTTON STYLES ===== */
 /* Button container - holds all three buttons */
 .button-container {
     position: fixed;
@@ -122,7 +105,7 @@ body {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
 }
 
-/* Modal adjustments */
+/* ===== MODAL STYLES ===== */
 .modal-content {
     border-radius: 15px;
     border: none;
@@ -153,7 +136,7 @@ body {
     border-color: #0a58ca;
 }
 
-/* Toast notification */
+/* ===== TOAST NOTIFICATION ===== */
 .toast-container {
     position: fixed;
     bottom: 20px;
@@ -164,6 +147,26 @@ body {
 
 .toast {
     min-width: 250px;
+}
+
+/* ===== MAP STYLES ===== */
+/* Marker cluster custom styling */
+.marker-cluster {
+    background-color: rgba(13, 110, 253, 0.6);
+    border-radius: 50%;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+}
+
+.marker-cluster div {
+    background-color: rgba(13, 110, 253, 0.8);
+    border-radius: 50%;
+    margin: 5px;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    font-size: 14px;
 }
 
 /* Leaflet popup container styling */
@@ -183,12 +186,18 @@ body {
     background: white;
 }
 
+/* Reposition zoom controls to middle left */
+.leaflet-control-zoom {
+    top: 70px !important;
+    z-index: 1 !important;
+}
+
+/* ===== POPUP STYLES ===== */
 /* Custom popup styles */
 .custom-popup {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     padding: 15px;
     min-width: 250px;
-    max-width: 300px;
 }
 
 .popup-header {
@@ -336,31 +345,7 @@ body {
     margin-right: 8px;
 }
 
-/* Agreement modal styles */
-.agreement-content {
-    max-height: 60vh;
-    overflow-y: auto;
-}
-
-.agreement-content h6 {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 10px;
-}
-
-.agreement-content ul {
-    padding-left: 20px;
-    margin-bottom: 15px;
-}
-
-.agreement-content li {
-    margin-bottom: 5px;
-}
-
-.agreement-content strong {
-    color: #d32f2f;
-}
-
+/* ===== EMBED STYLES ===== */
 /* Embed container styles */
 .embed-container {
     position: relative;
@@ -433,32 +418,7 @@ body {
     color: #1DA1F2;
 }
 
-/* Custom popup styles */
-.custom-popup {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 15px;
-    min-width: 250px;
-    /* Allow wider popups */
-    max-width: 350px;
-    width: auto !important;
-    z-index: 1001;
-}
-
-/* Location options styling */
-.form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.form-check-label {
-    cursor: pointer;
-}
-
-#selectedLocationInfo {
-    font-style: italic;
-    margin-top: 0.25rem;
-}
-
+/* ===== SEARCH STYLES ===== */
 /* Search Bar Styles */
 .search-container {
     position: fixed;
@@ -536,11 +496,23 @@ body {
     border-bottom: none;
 }
 
-/* Reposition zoom controls to middle left */
-.leaflet-control-zoom {
-    top: 70px !important;
+/* ===== FORM STYLES ===== */
+/* Location options styling */
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
 }
 
+.form-check-label {
+    cursor: pointer;
+}
+
+#selectedLocationInfo {
+    font-style: italic;
+    margin-top: 0.25rem;
+}
+
+/* ===== RESPONSIVE STYLES ===== */
 /* Mobile adjustments */
 @media (max-width: 768px) {
     .button-container {
