@@ -1,3 +1,4 @@
+// ===== GLOBAL VARIABLES =====
 window.openRandomPinPopup = false;
 window.randomPinId = null;
 window.isGoingToRandomPin = false;
@@ -7,8 +8,17 @@ let mapClickHandler = null;
 let pinModal = null;
 let isPopupOpen = false;
 let justClosedPopup = false; 
+let currentPopup = null;
+let isAdjustingForPopup = false;
+let userInteracted = false;
+let isOpeningPopup = false;
 
-// Get CSRF token for Django
+// ===== MAP AND MARKER VARIABLES =====
+let map = null;
+let markers = null;
+let csrftoken = null;
+
+// ===== UTILITY FUNCTIONS =====
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -23,36 +33,283 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-const csrftoken = getCookie('csrftoken');
 
-// Initialize map
-var map = L.map('map', {
-    minZoom: 4,
-    maxZoom: 18,
-    maxBounds: [[-90, -180], [90, 180]],
-    maxBoundsViscosity: 1.0
-}).setView([50, 0], 4);
+function showToast(message, type = 'success') {
+    const toastEl = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    toastMessage.textContent = message;
+    toastEl.className = 'toast';
+    
+    // Set background color based on type
+    if (type === 'success') {
+        toastEl.classList.add('text-bg-success');
+    } else if (type === 'error') {
+        toastEl.classList.add('text-bg-danger');
+    } else {
+        toastEl.classList.add('text-bg-primary');
+    }
+    
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+}
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+function getClientLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error("Geolocation is not supported by this browser."));
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            position => resolve({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            }),
+            error => reject(error),
+            { timeout: 5000 }
+        );
+    });
+}
 
-// Create a marker cluster group
-var markers = L.markerClusterGroup({
-    chunkedLoading: true,
-    spiderfyOnMaxZoom: true,
-    showCoverageOnHover: false,
-    zoomToBoundsOnClick: true
-});
-map.addLayer(markers);
+function resetForm() {
+    document.getElementById("linkInput").value = "";
+    const pinForm = document.getElementById("pinForm");
+    if (pinForm) pinForm.classList.remove('was-validated');
+    
+    // Reset location options
+    const selectedLocationOption = document.getElementById('selectedLocationOption');
+    const randomLocationOption = document.getElementById('randomLocationOption');
+    const currentLocationOption = document.getElementById('currentLocationOption');
+    
+    if (selectedLocationOption) selectedLocationOption.checked = false;
+    if (randomLocationOption) randomLocationOption.checked = false;
+    if (currentLocationOption) currentLocationOption.checked = false;
+}
 
-// Track the currently open popup and map movement
-var currentPopup = null;
-var isAdjustingForPopup = false;
-var userInteracted = false;
-var isOpeningPopup = false; // Flag to track if we're opening a popup
+// ===== MAP INITIALIZATION =====
+function initializeMap() {
+    // Initialize map
+    map = L.map('map', {
+        minZoom: 4,
+        maxZoom: 18,
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0
+    }).setView([50, 0], 4);
 
-// Customising the pin pop up
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Create a marker cluster group
+    markers = L.markerClusterGroup({
+        chunkedLoading: true,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true
+    });
+    map.addLayer(markers);
+    
+    // Set up event listeners
+    setupMapEventListeners();
+    
+    // Initial load
+    map.whenReady(loadPins);
+}
+
+// ===== MAP EVENT LISTENERS =====
+function setupMapEventListeners() {
+    // Map events
+    map.on('popupopen', handlePopupOpen);
+    map.on('popupclose', handlePopupClose);
+    map.on('movestart', handleMapMoveStart);
+    map.on('moveend', handleMapMoveEnd);
+    map.on('click', handleMapClick);
+}
+
+// ===== MAP EVENT HANDLERS =====
+function handlePopupOpen(e) {
+    currentPopup = e.popup;
+    isAdjustingForPopup = true;
+    isOpeningPopup = true;
+    userInteracted = false;
+    isPopupOpen = true;
+    justClosedPopup = false; // Reset the flag when a popup opens
+
+    // Hide the search bar when popup opens
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.add('hidden');
+    }
+
+    // Show the close button
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
+    if (popupCloseBtn) {
+        popupCloseBtn.style.display = 'flex';
+    }
+
+    // Handle embeds
+    setTimeout(() => {
+        const popupElement = e.popup.getElement();
+        if (popupElement) {
+            // Look for TikTok embeds inside the popup
+            const tiktokEmbeds = popupElement.querySelectorAll('.tiktok-embed');
+            if (tiktokEmbeds.length > 0) {
+                // If TikTok script has already loaded, force it to re-render
+                if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
+                    window.tiktokEmbed.render();
+                } else {
+                    // If not yet loaded, load it now
+                    const script = document.createElement('script');
+                    script.src = "https://www.tiktok.com/embed.js";
+                    script.async = true;
+                    script.onload = function() {
+                        if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
+                            window.tiktokEmbed.render();
+                        }
+                    };
+                    document.body.appendChild(script);
+                }
+            }
+            
+            // Look for Instagram embeds inside the popup
+            const instagramEmbeds = popupElement.querySelectorAll('.instagram-media');
+            if (instagramEmbeds.length > 0) {
+                // If Instagram script has already loaded, force it to re-render
+                if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
+                    window.instgrm.Embeds.process();
+                } else {
+                    // If not yet loaded, load it now
+                    const script = document.createElement('script');
+                    script.src = "https://www.instagram.com/embed.js";
+                    script.async = true;
+                    script.onload = function() {
+                        if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
+                            window.instgrm.Embeds.process();
+                        }
+                    };
+                    document.body.appendChild(script);
+                }
+            }
+        }
+    }, 300);
+
+    // Prevent clicks inside the popup from closing it
+    setTimeout(function() {
+        const popupElement = e.popup.getElement();
+        if (popupElement) {
+            const popupContent = popupElement.querySelector('.leaflet-popup-content');
+            if (popupContent) {
+                popupContent.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                });
+            }
+        }
+    }, 10);
+}
+
+function handlePopupClose(e) {
+    if (currentPopup === e.popup) {
+        currentPopup = null;
+    }
+    isPopupOpen = false;
+    justClosedPopup = true; // Set the flag when a popup closes
+    
+    // Show the search bar when popup closes
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.remove('hidden');
+    }
+    
+    // Hide the close button
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
+    if (popupCloseBtn) {
+        popupCloseBtn.style.display = 'none';
+    }
+    
+    // Reset the flag after a short delay
+    setTimeout(() => {
+        justClosedPopup = false;
+    }, 300);
+}
+
+function handleMapMoveStart() {
+    userInteracted = true;
+}
+
+function handleMapMoveEnd() {
+    // If the map moved due to popup opening, don't close the popup
+    if (isAdjustingForPopup) {
+        isAdjustingForPopup = false;
+        return;
+    }
+    
+    // If we're going to a random pin, don't close the popup
+    if (window.isGoingToRandomPin) {
+        window.isGoingToRandomPin = false;
+        return;
+    }
+    
+    // If we're opening a popup, don't close it
+    if (isOpeningPopup) {
+        isOpeningPopup = false;
+        return;
+    }
+    
+    // If the user manually moved the map, close any open popup
+    if (userInteracted && currentPopup && currentPopup.isOpen()) {
+        currentPopup.close();
+        currentPopup = null;
+    }
+    
+    // Always reload pins when the map moves
+    loadPins();
+}
+
+function handleMapClick(e) {
+    // If we just closed a popup, don't open the modal
+    if (justClosedPopup) {
+        justClosedPopup = false; // Reset the flag
+        return;
+    }
+    
+    // If a popup is currently open, close it
+    if (isPopupOpen && currentPopup && currentPopup.isOpen()) {
+        currentPopup.close();
+        return;
+    }
+    
+    // Otherwise, proceed with opening the modal
+    const { lat, lng } = e.latlng;
+    selectedCoordinates = { lat, lng };
+    
+    // Open the modal with selected coordinates
+    openPinModal();
+}
+
+// ===== MARKER AND PIN FUNCTIONS =====
+function createMarkerWithPin(pin) {
+    let marker = L.marker([pin.latitude, pin.longitude]);
+    
+    // Ensure pin data has the correct structure
+    const pinData = {
+        ...pin,
+        platform_data: pin.platform_data || {
+            url: pin.url || '',
+            video_id: pin.video_id || ''
+        }
+    };
+    
+    marker.pinData = pinData; // Store pin data for later identification
+    marker.bindPopup(createPopupContent(pinData), {
+        maxWidth: 350,
+        className: 'custom-popup-container',
+        autoClose: false,  
+        closeButton: false 
+    });
+    return marker;
+}
+
 function createPopupContent(pin) {
     // Determine platform classes
     let platformClass = 'default';
@@ -184,34 +441,6 @@ function createPopupContent(pin) {
     `;
 }
 
-L.Popup.prototype._closeIfOutOfView = function() {
-    // Override the default behavior to prevent popup from closing automatically on smaller screens
-    return;
-};
-
-// Store pin data in markers to identify them later
-function createMarkerWithPin(pin) {
-    let marker = L.marker([pin.latitude, pin.longitude]);
-    
-    // Ensure pin data has the correct structure
-    const pinData = {
-        ...pin,
-        platform_data: pin.platform_data || {
-            url: pin.url || '',
-            video_id: pin.video_id || ''
-        }
-    };
-    
-    marker.pinData = pinData; // Store pin data for later identification
-    marker.bindPopup(createPopupContent(pinData), {
-        maxWidth: 350,
-        className: 'custom-popup-container',
-        autoClose: false,  
-        closeButton: false 
-    });
-    return marker;
-}
-
 function isPointVisible(lat, lng) {
     const bounds = map.getBounds();
     return bounds.contains([lat, lng]);
@@ -282,8 +511,13 @@ function zoomToPin(pinId, maxZoom = 18) {
     });
 }
 
-// Load pins from the server
 function loadPins() {
+    // Check if map is initialized
+    if (!map || !markers) {
+        console.error("Map or markers not initialized");
+        return;
+    }
+
     // Check if there's an open popup and remember its pin data
     let openPopupPin = null;
     if (currentPopup && currentPopup.isOpen()) {
@@ -320,163 +554,30 @@ function loadPins() {
             if (window.randomPinId) {
                 const randomPin = pins.find(pin => pin.id === window.randomPinId);
             }
+        })
+        .catch(error => {
+            console.error("Error loading pins:", error);
         });
 }
 
-// Handle popup events
-map.on('popupopen', function(e) {
-    currentPopup = e.popup;
-    isAdjustingForPopup = true;
-    isOpeningPopup = true;
-    userInteracted = false;
-    isPopupOpen = true;
-    justClosedPopup = false; // Reset the flag when a popup opens
-
-    // Hide the search bar when popup opens
-    const searchContainer = document.querySelector('.search-container');
-    if (searchContainer) {
-        searchContainer.classList.add('hidden');
-    }
-
-    // Show the close button
-    const popupCloseBtn = document.getElementById('popupCloseBtn');
-    if (popupCloseBtn) {
-        popupCloseBtn.style.display = 'flex';
-    }
-
-    // Wait a moment for DOM to settle
-    setTimeout(() => {
-        const popupElement = e.popup.getElement();
-        if (popupElement) {
-            // Look for TikTok embeds inside the popup
-            const tiktokEmbeds = popupElement.querySelectorAll('.tiktok-embed');
-            if (tiktokEmbeds.length > 0) {
-                // If TikTok script has already loaded, force it to re-render
-                if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
-                    window.tiktokEmbed.render();
-                } else {
-                    // If not yet loaded, load it now
-                    const script = document.createElement('script');
-                    script.src = "https://www.tiktok.com/embed.js";
-                    script.async = true;
-                    script.onload = function() {
-                        if (window.tiktokEmbed && typeof window.tiktokEmbed.render === 'function') {
-                            window.tiktokEmbed.render();
-                        }
-                    };
-                    document.body.appendChild(script);
-                }
-            }
-            
-            // Look for Instagram embeds inside the popup
-            const instagramEmbeds = popupElement.querySelectorAll('.instagram-media');
-            if (instagramEmbeds.length > 0) {
-                // If Instagram script has already loaded, force it to re-render
-                if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
-                    window.instgrm.Embeds.process();
-                } else {
-                    // If not yet loaded, load it now
-                    const script = document.createElement('script');
-                    script.src = "https://www.instagram.com/embed.js";
-                    script.async = true;
-                    script.onload = function() {
-                        if (window.instgrm && typeof window.instgrm.Embeds.process === 'function') {
-                            window.instgrm.Embeds.process();
-                        }
-                    };
-                    document.body.appendChild(script);
-                }
-            }
+// ===== MODAL FUNCTIONS =====
+function initializeModal() {
+    // Initialize Bootstrap modal
+    pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+    
+    // Set up event listeners
+    document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
+        resetForm();
+        
+        // Show the search bar when modal closes
+        const searchContainer = document.querySelector('.search-container');
+        if (searchContainer) {
+            searchContainer.classList.remove('hidden');
         }
-    }, 300);
-
-    // Prevent clicks inside the popup from closing it
-    setTimeout(function() {
-        const popupElement = e.popup.getElement();
-        if (popupElement) {
-            const popupContent = popupElement.querySelector('.leaflet-popup-content');
-            if (popupContent) {
-                popupContent.addEventListener('click', function(event) {
-                    event.stopPropagation();
-                });
-            }
-        }
-    }, 10);
-});
-
-map.on('popupclose', function(e) {
-    if (currentPopup === e.popup) {
-        currentPopup = null;
-    }
-    isPopupOpen = false;
-    justClosedPopup = true; // Set the flag when a popup closes
+    });
     
-    // Show the search bar when popup closes
-    const searchContainer = document.querySelector('.search-container');
-    if (searchContainer) {
-        searchContainer.classList.remove('hidden');
-    }
-    
-    // Hide the close button
-    const popupCloseBtn = document.getElementById('popupCloseBtn');
-    if (popupCloseBtn) {
-        popupCloseBtn.style.display = 'none';
-    }
-    
-    // Reset the flag after a short delay
-    setTimeout(() => {
-        justClosedPopup = false;
-    }, 300);
-});
-
-// Handle map events
-map.on('movestart', function() {
-    userInteracted = true;
-});
-
-map.on('moveend', function() {
-    // If the map moved due to popup opening, don't close the popup
-    if (isAdjustingForPopup) {
-        isAdjustingForPopup = false;
-        return;
-    }
-    
-    // If we're going to a random pin, don't close the popup
-    if (window.isGoingToRandomPin) {
-        window.isGoingToRandomPin = false;
-        return;
-    }
-    
-    // If we're opening a popup, don't close it
-    if (isOpeningPopup) {
-        isOpeningPopup = false;
-        return;
-    }
-    
-    // If the user manually moved the map, close any open popup
-    if (userInteracted && currentPopup && currentPopup.isOpen()) {
-        currentPopup.close();
-        currentPopup = null;
-    }
-    
-    // Always reload pins when the map moves
-    loadPins();
-});
-
-// Reset form function
-function resetForm() {
-    document.getElementById("linkInput").value = "";
-    const pinForm = document.getElementById("pinForm");
-    if (pinForm) pinForm.classList.remove('was-validated');
-    
-    // Reset location options
-    const selectedLocationOption = document.getElementById('selectedLocationOption');
-    const randomLocationOption = document.getElementById('randomLocationOption');
-    const currentLocationOption = document.getElementById('currentLocationOption');
-    
-    if (selectedLocationOption) selectedLocationOption.checked = false;
-    if (randomLocationOption) randomLocationOption.checked = false;
-    if (currentLocationOption) currentLocationOption.checked = false;
+    // Form submission
+    document.getElementById("pinForm").addEventListener("submit", handleFormSubmit);
 }
 
 function openPinModal() {
@@ -504,49 +605,109 @@ function openPinModal() {
         if (selectedLocationInfo) selectedLocationInfo.style.display = 'none';
     }
     
+    // Hide the search bar when modal opens
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.add('hidden');
+    }
+    
     // Show the modal
     if (pinModal) {
         pinModal.show();
     }
 }
 
-// Add click event listener to the map
-map.on('click', function(e) {
-    // If we just closed a popup, don't open the modal
-    if (justClosedPopup) {
-        justClosedPopup = false; // Reset the flag
+async function handleFormSubmit(e) {
+    e.preventDefault(); // Prevent form submission
+    
+    const linkInput = document.getElementById("linkInput");
+    
+    // Validate form
+    if (!linkInput.value) {
+        linkInput.classList.add('is-invalid');
         return;
     }
     
-    // If a popup is currently open, close it
-    if (isPopupOpen && currentPopup && currentPopup.isOpen()) {
-        currentPopup.close();
+    linkInput.classList.remove('is-invalid');
+    
+    // Determine location type
+    const locationType = document.querySelector('input[name="locationOption"]:checked');
+    if (!locationType) {
+        showToast("❌ Please select a location option", "error");
         return;
     }
     
-    // Otherwise, proceed with opening the modal
-    const { lat, lng } = e.latlng;
-    selectedCoordinates = { lat, lng };
+    let requestData = {
+        link: linkInput.value,
+        location_type: locationType.value
+    };
     
-    // Open the modal with selected coordinates
-    openPinModal();
-});
+    if (locationType.value === "selected" && selectedCoordinates) {
+        requestData.latitude = selectedCoordinates.lat;
+        requestData.longitude = selectedCoordinates.lng;
+    } else if (locationType.value === "current") {
+        try {
+            const position = await getClientLocation();
+            requestData.latitude = position.latitude;
+            requestData.longitude = position.longitude;
+        } catch (error) {
+            showToast("❌ Could not get your current location", "error");
+            return;
+        }
+    }
+    
+    // Show loading state
+    const postBtn = document.getElementById("postBtn");
+    const originalBtnText = postBtn.innerHTML;
+    postBtn.disabled = true;
+    postBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Posting...';
+    
+    fetch("/api/pins/create/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.latitude && data.longitude) {
+            showToast("✅ Pin posted successfully!");
+            if (pinModal) {
+                pinModal.hide();
+            }
+            resetForm();
+            
+            // Reload pins to include the new one
+            loadPins();
+            
+            // Center map on new pin
+            map.panTo([data.latitude, data.longitude], {
+                animate: true,
+                duration: 1
+            });
+        } else {
+            showToast(`❌ ${data.error || "Error posting pin"}`, "error");
+        }
+    })
+    .catch(error => {
+        showToast("❌ Network error. Please try again.", "error");
+    })
+    .finally(() => {
+        // Reset button state
+        postBtn.disabled = false;
+        postBtn.innerHTML = originalBtnText;
+    });
+}
 
-// Initial load
-map.whenReady(loadPins);
-
-// UI functionality
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap modal
-    pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-
+// ===== UI FUNCTIONS =====
+function initializeUI() {
     // Random pin button functionality
     const randomPinBtn = document.getElementById("randomPinBtn");
     
     // UI elements
     const openFormBtn = document.getElementById("openFormBtn");
-    const toastEl = document.getElementById('toast');
-    const toastMessage = document.getElementById('toastMessage');
 
     // Popup close button functionality
     const popupCloseBtn = document.getElementById('popupCloseBtn');
@@ -558,87 +719,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    randomPinBtn.addEventListener("click", function() {
-        // Hide the search bar when loading random pin
-        const searchContainer = document.querySelector('.search-container');
-        if (searchContainer) {
-            searchContainer.classList.add('hidden');
-        }
-        
-        // Show loading indicator
-        randomPinBtn.disabled = true;
-        randomPinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        
-        fetch("/api/pins/random/")
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error("Network response was not ok");
-                }
-                return res.json();
-            })
-            .then(pin => {
-                if (pin.error) {
-                    showToast(`❌ ${pin.error}`, "error");
-                    randomPinBtn.disabled = false;
-                    randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                    
-                    // Show the search bar again if there was an error
-                    if (searchContainer) {
-                        searchContainer.classList.remove('hidden');
-                    }
-                    return;
-                }
-                
-                // Store the random pin ID
-                window.randomPinId = pin.id;
-                window.isGoingToRandomPin = true;
-                
-                // First, pan to the pin's location at a reasonable zoom level
-                map.setView([pin.latitude, pin.longitude], 10, {
-                    animate: true,
-                    duration: 1.5
-                });
-                
-                // After panning, start the zoom-in process
-                setTimeout(() => {
-                    // Load pins for the new area
-                    loadPins();
-                    
-                    // Wait a bit for pins to load, then start zooming
-                    setTimeout(() => {
-                        zoomToPin(pin.id)
-                            .then(() => {
-                                // Success! Reset button
-                                randomPinBtn.disabled = false;
-                                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                                
-                                // The search bar will be hidden by the popupopen event handler
-                            })
-                            .catch(error => {
-                                console.error("Error zooming to pin:", error);
-                                showToast("⚠️ Could not zoom to pin", "warning");
-                                randomPinBtn.disabled = false;
-                                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                                
-                                // Show the search bar again if there was an error
-                                if (searchContainer) {
-                                    searchContainer.classList.remove('hidden');
-                                }
-                            });
-                    }, 1000);
-                }, 1600);
-            })
-            .catch(error => {
-                showToast("❌ Error fetching random pin", "error");
-                randomPinBtn.disabled = false;
-                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                
-                // Show the search bar again if there was an error
-                if (searchContainer) {
-                    searchContainer.classList.remove('hidden');
-                }
-            });
-    });
+    randomPinBtn.addEventListener("click", handleRandomPinClick);
 
     // Open modal when FAB is clicked
     openFormBtn.addEventListener('click', () => {
@@ -653,146 +734,128 @@ document.addEventListener('DOMContentLoaded', function() {
         openPinModal();
     });
     
-    // Reset form when modal is hidden
-    document.getElementById('pinModal').addEventListener('hidden.bs.modal', () => {
-        resetForm();
-        
-        // Show the search bar when modal closes
-        const searchContainer = document.querySelector('.search-container');
-        if (searchContainer) {
-            searchContainer.classList.remove('hidden');
-        }
-    });
-    
-    function showToast(message, type = 'success') {
-        toastMessage.textContent = message;
-        toastEl.className = 'toast';
-        
-        // Set background color based on type
-        if (type === 'success') {
-            toastEl.classList.add('text-bg-success');
-        } else if (type === 'error') {
-            toastEl.classList.add('text-bg-danger');
-        } else {
-            toastEl.classList.add('text-bg-primary');
-        }
-        
-        const toast = new bootstrap.Toast(toastEl);
-        toast.show();
-    }
+    // Setup search functionality
+    setupSearch();
+}
 
-    function getClientLocation() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error("Geolocation is not supported by this browser."));
+function handleRandomPinClick() {
+    // Hide the search bar when loading random pin
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.add('hidden');
+    }
+    
+    // Show loading indicator
+    const randomPinBtn = document.getElementById("randomPinBtn");
+    randomPinBtn.disabled = true;
+    randomPinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch("/api/pins/random/")
+        .then(res => {
+            if (!res.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return res.json();
+        })
+        .then(pin => {
+            if (pin.error) {
+                showToast(`❌ ${pin.error}`, "error");
+                randomPinBtn.disabled = false;
+                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                
+                // Show the search bar again if there was an error
+                if (searchContainer) {
+                    searchContainer.classList.remove('hidden');
+                }
                 return;
             }
             
-            navigator.geolocation.getCurrentPosition(
-                position => resolve({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                }),
-                error => reject(error),
-                { timeout: 5000 }
-            );
-        });
-    }
-    
-    // Form submission
-    document.getElementById("pinForm").addEventListener("submit", async function(e) {
-        e.preventDefault(); // Prevent form submission
-        
-        const linkInput = document.getElementById("linkInput");
-        
-        // Validate form
-        if (!linkInput.value) {
-            linkInput.classList.add('is-invalid');
-            return;
-        }
-        
-        linkInput.classList.remove('is-invalid');
-        
-        // Determine location type
-        const locationType = document.querySelector('input[name="locationOption"]:checked');
-        if (!locationType) {
-            showToast("❌ Please select a location option", "error");
-            return;
-        }
-        
-        let requestData = {
-            link: linkInput.value,
-            location_type: locationType.value
-        };
-        
-        if (locationType.value === "selected" && selectedCoordinates) {
-            requestData.latitude = selectedCoordinates.lat;
-            requestData.longitude = selectedCoordinates.lng;
-        } else if (locationType.value === "current") {
-            try {
-                const position = await getClientLocation();
-                requestData.latitude = position.latitude;
-                requestData.longitude = position.longitude;
-            } catch (error) {
-                showToast("❌ Could not get your current location", "error");
-                return;
-            }
-        }
-        
-        // Show loading state
-        const postBtn = document.getElementById("postBtn");
-        const originalBtnText = postBtn.innerHTML;
-        postBtn.disabled = true;
-        postBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Posting...';
-        
-        fetch("/api/pins/create/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrftoken
-            },
-            body: JSON.stringify(requestData)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.latitude && data.longitude) {
-                showToast("✅ Pin posted successfully!");
-                if (pinModal) {
-                    pinModal.hide();
-                }
-                resetForm();
-                
-                // Reload pins to include the new one
+            // Store the random pin ID
+            window.randomPinId = pin.id;
+            window.isGoingToRandomPin = true;
+            
+            // First, pan to the pin's location at a reasonable zoom level
+            map.setView([pin.latitude, pin.longitude], 10, {
+                animate: true,
+                duration: 1.5
+            });
+            
+            // After panning, start the zoom-in process
+            setTimeout(() => {
+                // Load pins for the new area
                 loadPins();
                 
-                // Center map on new pin
-                map.panTo([data.latitude, data.longitude], {
-                    animate: true,
-                    duration: 1
-                });
-            } else {
-                showToast(`❌ ${data.error || "Error posting pin"}`, "error");
-            }
+                // Wait a bit for pins to load, then start zooming
+                setTimeout(() => {
+                    zoomToPin(pin.id)
+                        .then(() => {
+                            // Success! Reset button
+                            randomPinBtn.disabled = false;
+                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            
+                            // The search bar will be hidden by the popupopen event handler
+                        })
+                        .catch(error => {
+                            console.error("Error zooming to pin:", error);
+                            showToast("⚠️ Could not zoom to pin", "warning");
+                            randomPinBtn.disabled = false;
+                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            
+                            // Show the search bar again if there was an error
+                            if (searchContainer) {
+                                searchContainer.classList.remove('hidden');
+                            }
+                        });
+                }, 1000);
+            }, 1600);
         })
         .catch(error => {
-            showToast("❌ Network error. Please try again.", "error");
-        })
-        .finally(() => {
-            // Reset button state
-            postBtn.disabled = false;
-            postBtn.innerHTML = originalBtnText;
+            showToast("❌ Error fetching random pin", "error");
+            randomPinBtn.disabled = false;
+            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+            
+            // Show the search bar again if there was an error
+            if (searchContainer) {
+                searchContainer.classList.remove('hidden');
+            }
         });
+}
+
+// ===== SEARCH FUNCTIONS =====
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    let debounceTimer;
+
+    // Event listener for search input with debounce
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        const query = e.target.value.trim();
+
+        debounceTimer = setTimeout(() => {
+            fetchSearchResults(query);
+        }, 1000); // 1s debounce
     });
-});
 
-// Search functionality
-const searchInput = document.getElementById('searchInput');
-const searchResults = document.getElementById('searchResults');
+    // Hide search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-bar')) {
+            searchResults.style.display = 'none';
+        }
+    });
 
-let debounceTimer;
+    // Prevent search results from closing when clicking inside them
+    searchResults.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
 
-// Function to fetch search results from Photon API
+    // Add a clear button to the search input
+    addClearButton();
+}
+
 function fetchSearchResults(query) {
+    const searchResults = document.getElementById('searchResults');
+    
     if (!query) {
         searchResults.style.display = 'none';
         return;
@@ -817,8 +880,10 @@ function fetchSearchResults(query) {
         });
 }
 
-// Function to display search results
 function displaySearchResults(features) {
+    const searchResults = document.getElementById('searchResults');
+    const searchInput = document.getElementById('searchInput');
+    
     searchResults.innerHTML = '';
 
     if (features.length === 0) {
@@ -862,32 +927,11 @@ function displaySearchResults(features) {
     searchResults.style.display = 'block';
 }
 
-// Event listener for search input with debounce
-searchInput.addEventListener('input', (e) => {
-    clearTimeout(debounceTimer);
-    const query = e.target.value.trim();
-
-    debounceTimer = setTimeout(() => {
-        fetchSearchResults(query);
-    }, 1000); // 1s debounce
-});
-
-// Hide search results when clicking outside
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-bar')) {
-        searchResults.style.display = 'none';
-    }
-});
-
-// Prevent search results from closing when clicking inside them
-searchResults.addEventListener('click', (e) => {
-    e.stopPropagation();
-});
-
-// Add a clear button to the search input
 function addClearButton() {
     const searchContainer = document.querySelector('.search-bar');
+    const searchInput = document.getElementById('searchInput');
     const clearButton = document.createElement('button');
+    
     clearButton.type = 'button';
     clearButton.className = 'search-clear';
     clearButton.innerHTML = '&times;';
@@ -929,7 +973,7 @@ function addClearButton() {
     clearButton.addEventListener('click', function(e) {
         e.preventDefault(); // Prevent form submission if inside a form
         searchInput.value = '';
-        searchResults.style.display = 'none';
+        document.getElementById('searchResults').style.display = 'none';
         searchInput.focus(); // Return focus to the input field
         updateClearButtonVisibility(); // Immediately hide the clear button
     });
@@ -938,5 +982,18 @@ function addClearButton() {
     updateClearButtonVisibility();
 }
 
-// Initialize clear button
-addClearButton();
+// ===== INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token
+    csrftoken = getCookie('csrftoken');
+    
+    // Initialize components
+    initializeMap();
+    initializeModal();
+    initializeUI();
+});
+
+// Override default popup behavior to prevent closing on smaller screens
+L.Popup.prototype._closeIfOutOfView = function() {
+    return;
+};
