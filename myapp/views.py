@@ -1,9 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from .models import Pin, YouTubePin, TikTokPin, InstagramPin
-from django.contrib.auth import login, logout
-from django.contrib.auth.forms import AuthenticationForm
-from .forms import CustomUserCreationForm
 import re
 import random, requests
 from rest_framework import generics
@@ -13,7 +10,6 @@ from .serializers import PinSerializer
 from django.core.cache import cache
 from django_ratelimit.decorators import ratelimit
 from datetime import datetime
-from django.contrib.admin.views.decorators import staff_member_required
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from urllib.parse import urlparse, urlunparse
@@ -164,9 +160,6 @@ def jitter_coordinate(lat, lon, max_offset=0.02):
 # ----------------------------
 # API Endpoints
 # ----------------------------
-class PinListAPIView(generics.ListAPIView):
-    queryset = Pin.objects.all()
-    serializer_class = PinSerializer
 
 @api_view(['GET'])
 def pins_in_bounds(request):
@@ -337,132 +330,6 @@ def create_pin(request):
     return Response({"error": "Platform not supported yet"}, status=400)
 
 
-@staff_member_required
-@api_view(['POST'])
-def create_secret_pin(request):
-    if getattr(request, 'limited', False):
-        return Response({"error": "Too many posts. Please try again later."}, status=429)
-    
-    link = request.data.get("link")
-    if not link:
-        return Response({"error": "Link is required"}, status=400)
-
-    link_platform = get_link_platform(link)
-    if not link_platform:
-        return Response({"error": "This platform is not allowed."}, status=400)
-
-    # Regions with higher population density (for weighted random selection)
-    regions = [
-        {"name": "North America", "weight": 7, "min_lat": 15, "max_lat": 75, "min_lon": -170, "max_lon": -50},
-        {"name": "Europe", "weight": 6, "min_lat": 35, "max_lat": 70, "min_lon": -10, "max_lon": 40},
-        {"name": "Asia", "weight": 10, "min_lat": -10, "max_lat": 55, "min_lon": 40, "max_lon": 150},
-        {"name": "Africa", "weight": 4, "min_lat": -35, "max_lat": 35, "min_lon": -20, "max_lon": 50},
-        {"name": "South America", "weight": 3, "min_lat": -55, "max_lat": 15, "min_lon": -90, "max_lon": -35},
-        {"name": "Oceania", "weight": 2, "min_lat": -50, "max_lat": 0, "min_lon": 110, "max_lon": 180},
-    ]
-    
-    # Calculate total weight
-    total_weight = sum(region["weight"] for region in regions)
-    
-    # Select a region based on weight
-    r = random.uniform(0, total_weight)
-    cumulative_weight = 0
-    selected_region = None
-    
-    for region in regions:
-        cumulative_weight += region["weight"]
-        if r <= cumulative_weight:
-            selected_region = region
-            break
-    
-    # Generate random coordinates within the selected region
-    lat = random.uniform(selected_region["min_lat"], selected_region["max_lat"])
-    lon = random.uniform(selected_region["min_lon"], selected_region["max_lon"])
-
-    # Apply jitter to avoid exact overlaps
-    jitter_lat, jitter_lon = jitter_coordinate(lat, lon)
-
-    # Create the generic Pin first
-    pin = Pin.objects.create(
-        latitude=lat,
-        longitude=lon
-    )
-    
-    # Now create the platform-specific pin
-    if link_platform == "youtube_shorts":
-        youtube_pin = YouTubePin.objects.create(pin=pin, url=link)
-        serializer_data = {
-            "id": pin.id,
-            "latitude": pin.latitude,
-            "longitude": pin.longitude,
-            "created_at": pin.created_at,
-            "is_active": pin.is_active,
-            "platform": "YouTube Shorts",
-            "url": youtube_pin.url
-        }
-        return Response(serializer_data)
-    elif link_platform == "tiktok":
-        # Resolve TikTok URL to full URL
-        resolved_url = resolve_tiktok_url(link)
-        
-        # Extract content ID (works for both videos and photos)
-        content_id = extract_tiktok_video_id(resolved_url)
-        if not content_id:
-            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
-            return Response({"error": "Could not extract TikTok content ID"}, status=400)
-        
-        # Create TikTokPin with minimal data
-        tiktok_pin = TikTokPin.objects.create(
-            pin=pin,
-            url=resolved_url,
-            video_id=content_id
-        )
-        
-        serializer_data = {
-            "id": pin.id,
-            "latitude": pin.latitude,
-            "longitude": pin.longitude,
-            "created_at": pin.created_at,
-            "is_active": pin.is_active,
-            "platform": "TikTok",
-            "url": tiktok_pin.url,
-            "video_id": tiktok_pin.video_id
-        }
-        return Response(serializer_data)
-    elif link_platform == "instagram":
-        # Clean the URL to remove query parameters
-        clean_url = clean_instagram_url(link)
-        
-        # Extract Instagram shortcode
-        shortcode = extract_instagram_shortcode(link)
-        if not shortcode:
-            pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
-            return Response({"error": "Could not extract Instagram shortcode"}, status=400)
-        
-        # Create InstagramPin with the clean URL
-        instagram_pin = InstagramPin.objects.create(
-            pin=pin,
-            url=clean_url,  # Use the clean URL
-            shortcode=shortcode
-        )
-        
-        serializer_data = {
-            "id": pin.id,
-            "latitude": pin.latitude,
-            "longitude": pin.longitude,
-            "created_at": pin.created_at,
-            "is_active": pin.is_active,
-            "platform": "Instagram",
-            "url": instagram_pin.url,
-            "shortcode": instagram_pin.shortcode
-        }
-        return Response(serializer_data)
-    
-    # If we get here, the platform wasn't handled
-    pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
-    return Response({"error": "Platform not supported yet"}, status=400)
-
-
 @api_view(['GET'])
 def random_pin(request):
     # Get a random active pin
@@ -496,45 +363,3 @@ def terms_and_conditions(request):
 @login_required(login_url="map")
 def secret_map_view(request):
     return render(request, "secret_map.html")
-
-
-
-
-
-
-
-# ---- USER ACCOUNT VIEWS - NOT IN USE ----
-def register(request):
-    if request.user.is_authenticated:
-        return redirect('post_list') 
-    
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
-
-            return redirect('login')
-    else:
-        form = CustomUserCreationForm()
-
-    return render(request, 'account/register.html', {'form': form})
-
-def user_login(request):
-    if request.user.is_authenticated:
-        return redirect('index') 
-
-    if request.method == 'POST':
-        form = AuthenticationForm(data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-
-            return redirect('index') 
-    else:
-        form = AuthenticationForm()
-
-    return render(request, 'account/login.html', {'form': form})
-
-def user_logout(request):
-    logout(request)
-    return redirect('index')
