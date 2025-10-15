@@ -23,10 +23,12 @@ body {
     z-index: 1000;
     align-items: center;
     justify-content: center;
-    padding: 3px 5px;
+    padding: 3px 5px; 
     background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 50px;
-    border: 2px solid rgb(255, 255, 255);
+    border-radius: 50px; 
+    border: 1px solid rgba(255, 255, 255, 0.5); 
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
+    backdrop-filter: blur(5px); 
 }
 
 /* Popup close button */
@@ -190,10 +192,47 @@ body {
     background: white;
 }
 
-/* Reposition zoom controls to middle left */
+/* zoom controls */
 .leaflet-control-zoom {
     top: 70px !important;
-    z-index: 1 !important;
+    z-index: 1000 !important;
+    padding: 2px 4px; 
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 20px; 
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
+}
+
+/* Remove default button styling */
+.leaflet-control-zoom a {
+    background: none !important;
+    border: none !important;
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    font-size: 20px !important;
+    color: #333 !important;
+    text-align: center !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Remove default icon styling */
+.leaflet-control-zoom a::before,
+.leaflet-control-zoom a::after {
+    content: none !important;
+}
+
+/* Hover effect */
+.leaflet-control-zoom a:hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Remove default separator between buttons */
+.leaflet-control-zoom a + a {
+    border-left: none !important;
 }
 
 /* ===== POPUP STYLES ===== */
@@ -429,9 +468,9 @@ body {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 500; /* Lower z-index to be behind other elements */
+    z-index: 500; 
     width: 300px;
-    transition: opacity 0.3s ease, visibility 0.3s ease; /* Add transition */
+    transition: opacity 0.3s ease, visibility 0.3s ease; 
     opacity: 1;
     visibility: visible;
 }
@@ -439,7 +478,7 @@ body {
 .search-container.hidden {
     opacity: 0;
     visibility: hidden;
-    pointer-events: none; /* Prevent interaction when hidden */
+    pointer-events: none; 
 }
 
 .search-bar {
@@ -451,17 +490,17 @@ body {
     padding: 10px 15px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.5);
-    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
+    background-color: rgba(255, 255, 255, 0.7); 
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     font-size: 14px;
     outline: none;
     color: #333;
-    backdrop-filter: blur(5px); /* Adds a subtle blur effect */
+    backdrop-filter: blur(5px); 
     transition: all 0.3s ease;
 }
 
 #searchInput:focus {
-    background-color: rgba(255, 255, 255, 0.9); /* More opaque when focused */
+    background-color: rgba(255, 255, 255, 0.9);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -474,7 +513,7 @@ body {
     top: 100%;
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.95); /* Semi-transparent background */
+    background: rgba(255, 255, 255, 0.95); 
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     max-height: 300px;
@@ -482,7 +521,7 @@ body {
     z-index: 1001;
     margin-top: 5px;
     display: none;
-    backdrop-filter: blur(10px); /* Adds a subtle blur effect */
+    backdrop-filter: blur(10px); 
 }
 
 .search-result-item {
