@@ -194,7 +194,9 @@ body {
 
 /* zoom controls */
 .leaflet-control-zoom {
-    top: 70px !important;
+    position: fixed !important;
+    top: 45% !important;
+    transform: translateY(-50%) !important;
     z-index: 1000 !important;
     padding: 2px 4px; 
     background-color: rgba(255, 255, 255, 0.7);
@@ -224,15 +226,31 @@ body {
     content: none !important;
 }
 
-/* Hover effect */
-.leaflet-control-zoom a:hover {
+/* Active state for both desktop and mobile */
+.leaflet-control-zoom a:active {
     background-color: rgba(255, 255, 255, 0.9) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Hover effect only for non-touch devices */
+@media (hover: hover) {
+    .leaflet-control-zoom a:hover {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    }
 }
 
 /* Remove default separator between buttons */
 .leaflet-control-zoom a + a {
     border-left: none !important;
+}
+
+/* Fix for sticky hover states on touch devices */
+@media (pointer: coarse) {
+    .leaflet-control-zoom a:hover {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
 }
 
 /* ===== POPUP STYLES ===== */
