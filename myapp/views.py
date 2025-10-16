@@ -63,7 +63,7 @@ def resolve_tiktok_url(url):
     """
     try:
         # Make a HEAD request to follow redirects
-        response = requests.head(url, allow_redirects=True, timeout=5)
+        response = requests.get(url, allow_redirects=True, timeout=5)
         final_url = response.url
         
         # Verify it's a TikTok URL
