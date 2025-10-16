@@ -78,9 +78,12 @@ def resolve_reddit_url(url):
     Resolve shortened Reddit URLs to their full URLs
     Returns the full URL or the original URL if resolution fails
     """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:118.0) Gecko/20100101 Firefox/118.0"
+    }
+    
     try:
-        # Make a HEAD request to follow redirects
-        response = requests.head(url, allow_redirects=True, timeout=5)
+        response = requests.get(url, headers=headers, allow_redirects=True, timeout=5)
         final_url = response.url
         
         # Verify it's a Reddit URL
