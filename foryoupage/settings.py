@@ -17,6 +17,11 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split("
 
 ADMIN_URL = os.environ.get('DJANGO_ADMIN_URL', 'admin/')
 
+#PRAW
+REDDIT_CLIENT_ID = os.environ.get('REDDIT_CLIENT_ID', '')
+REDDIT_CLIENT_SECRET = os.environ.get('REDDIT_CLIENT_SECRET', '')
+REDDIT_USER_AGENT = os.environ.get('REDDIT_USER_AGENT', '')
+
 # Application definition
 
 INSTALLED_APPS = [

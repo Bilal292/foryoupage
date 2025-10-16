@@ -13,13 +13,22 @@ from datetime import datetime
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from urllib.parse import urlparse, urlunparse
+import praw
+from prawcore.exceptions import ResponseException, ServerError
+from django.conf import settings
 
+
+reddit = praw.Reddit(
+    client_id=settings.REDDIT_CLIENT_ID,
+    client_secret=settings.REDDIT_CLIENT_SECRET,
+    user_agent=settings.REDDIT_USER_AGENT
+)
 
 ALLOWED_PLATFORMS = {
     "tiktok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
     "youtube_shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
     "instagram": r"(?:www\.)?instagram\.com/(p|reel)/",
-    "reddit": r"(?:www\.)?reddit\.com/r/[^/]+/(comments|s)/[^/]+/",
+    "reddit": r"(?:www\.)?reddit\.com/r/[^/]+/(comments|s)/[^/]+/?",
 }
 
 
@@ -75,24 +84,21 @@ def resolve_tiktok_url(url):
 
 def resolve_reddit_url(url):
     """
-    Resolve shortened Reddit URLs to their full URLs
+    Resolve shortened Reddit URLs to their full URLs using PRAW
     Returns the full URL or the original URL if resolution fails
     """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:118.0) Gecko/20100101 Firefox/118.0"
-    }
-    
     try:
-        response = requests.get(url, headers=headers, allow_redirects=True, timeout=5)
-        final_url = response.url
-        
-        # Verify it's a Reddit URL
-        if 'reddit.com' in final_url:
-            return final_url
+        # Extract submission info
+        submission = reddit.submission(url=url)
+        full_url = f"https://www.reddit.com/r/{submission.subreddit.display_name}/comments/{submission.id}/"
+        print(f"Successfully resolved Reddit URL: {url} -> {full_url}")
+        return full_url
+
+    except (ResponseException, ServerError) as e:
+        print(f"Reddit API rate-limited or error: {e}")
         return url
-    except requests.exceptions.RequestException as e:
-        # Add logging to debug in production
-        print(f"Error resolving Reddit URL: {e}")
+    except Exception as e:
+        print(f"Error resolving Reddit URL with PRAW: {e}")
         return url
 
 def extract_tiktok_video_id(url):
@@ -123,18 +129,11 @@ def validate_and_sanitize_url(url):
     return True
 
 def get_link_platform(link):
-    # First, check if it's a Reddit short URL and resolve it
-    if 'reddit.com/r/' in link and '/s/' in link:
-        resolved_link = resolve_reddit_url(link)
-        # Now check the resolved link
-        link = resolved_link
-        print(f"Resolved Reddit URL: {link}")  # Debug logging
-    
     platform_detected = None
     for name, pattern in ALLOWED_PLATFORMS.items():
         if re.search(pattern, link, re.IGNORECASE):
             platform_detected = name
-            print(f"Detected platform: {name}")  # Debug logging
+            print(f"Detected platform: {name} for URL: {link}")  # Debug logging
             break
     
     return platform_detected
@@ -357,15 +356,38 @@ def create_pin(request):
         }
         return Response(serializer_data)
     elif link_platform == "reddit":
-        # If it's a short URL, resolve it first
+        # Store the original URL for comparison
+        original_url = link
+        
+        # Check if it's a short URL and try to resolve it
         if '/s/' in link:
+            print(f"Attempting to resolve Reddit short URL: {link}")
             resolved_url = resolve_reddit_url(link)
+            
+            # Check if resolution was successful
+            if resolved_url == link:
+                # Resolution failed - URL is still the same
+                pin.delete()
+                return Response({
+                    "error": "Could not resolve shortened Reddit URL. Please use the full URL."
+                }, status=400)
+            
+            # Resolution successful - use the resolved URL
+            print(f"Reddit URL resolved successfully: {resolved_url}")
+            link = resolved_url
         else:
+            # It's already a full URL
             resolved_url = link
+            print(f"Using full Reddit URL: {link}")
         
         # Extract post ID from Reddit URL
         match = re.search(r'reddit\.com/r/[^/]+/comments/([^/?]+)', resolved_url)
         post_id = match.group(1) if match else None
+        
+        # If we couldn't extract from the resolved URL, try the original URL
+        if not post_id and '/s/' in original_url:
+            match = re.search(r'reddit\.com/r/[^/]+/s/([^/?]+)', original_url)
+            post_id = match.group(1) if match else None
         
         if not post_id:
             pin.delete()  # Clean up the pin since we couldn't extract the post ID
@@ -424,4 +446,8 @@ def terms_and_conditions(request):
         'current_date': datetime.now().strftime("%B %d, %Y")
     }
     return render(request, 'terms_and_conditions.html', context)
+
+def reddit_auth_callback(request):
+    # This is just a placeholder for the redirect URI
+    return render(request, 'reddit_callback.html')
 
