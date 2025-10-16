@@ -87,7 +87,9 @@ def resolve_reddit_url(url):
         if 'reddit.com' in final_url:
             return final_url
         return url
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
+        # Add logging to debug in production
+        print(f"Error resolving Reddit URL: {e}")
         return url
 
 def extract_tiktok_video_id(url):
@@ -123,11 +125,13 @@ def get_link_platform(link):
         resolved_link = resolve_reddit_url(link)
         # Now check the resolved link
         link = resolved_link
+        print(f"Resolved Reddit URL: {link}")  # Debug logging
     
     platform_detected = None
     for name, pattern in ALLOWED_PLATFORMS.items():
         if re.search(pattern, link, re.IGNORECASE):
             platform_detected = name
+            print(f"Detected platform: {name}")  # Debug logging
             break
     
     return platform_detected
