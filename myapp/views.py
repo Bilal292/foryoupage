@@ -91,14 +91,11 @@ def resolve_reddit_url(url):
         # Extract submission info
         submission = reddit.submission(url=url)
         full_url = f"https://www.reddit.com/r/{submission.subreddit.display_name}/comments/{submission.id}/"
-        print(f"Successfully resolved Reddit URL: {url} -> {full_url}")
         return full_url
 
     except (ResponseException, ServerError) as e:
-        print(f"Reddit API rate-limited or error: {e}")
         return url
     except Exception as e:
-        print(f"Error resolving Reddit URL with PRAW: {e}")
         return url
 
 def extract_tiktok_video_id(url):
@@ -133,7 +130,6 @@ def get_link_platform(link):
     for name, pattern in ALLOWED_PLATFORMS.items():
         if re.search(pattern, link, re.IGNORECASE):
             platform_detected = name
-            print(f"Detected platform: {name} for URL: {link}")  # Debug logging
             break
     
     return platform_detected
@@ -173,10 +169,10 @@ def ip_to_location(ip):
             cache.set(cache_key, result, 86400)
             return result
         
-    except requests.exceptions.RequestException as e:
-        print(f"IP lookup failed (Request Error): {e}")
-    except Exception as e:
-        print(f"IP lookup failed (General Error): {e}")
+    except requests.exceptions.RequestException:
+        pass
+    except Exception:
+        pass
 
     return london_lat, london_lon
 
@@ -361,7 +357,6 @@ def create_pin(request):
         
         # Check if it's a short URL and try to resolve it
         if '/s/' in link:
-            print(f"Attempting to resolve Reddit short URL: {link}")
             resolved_url = resolve_reddit_url(link)
             
             # Check if resolution was successful
@@ -373,12 +368,10 @@ def create_pin(request):
                 }, status=400)
             
             # Resolution successful - use the resolved URL
-            print(f"Reddit URL resolved successfully: {resolved_url}")
             link = resolved_url
         else:
             # It's already a full URL
             resolved_url = link
-            print(f"Using full Reddit URL: {link}")
         
         # Extract post ID from Reddit URL
         match = re.search(r'reddit\.com/r/[^/]+/comments/([^/?]+)', resolved_url)
