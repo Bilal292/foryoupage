@@ -159,6 +159,7 @@ function handlePopupOpen(e) {
     setTimeout(() => {
         const popupElement = e.popup.getElement();
         if (popupElement) {
+
             // Look for TikTok embeds inside the popup
             const tiktokEmbeds = popupElement.querySelectorAll('.tiktok-embed');
             if (tiktokEmbeds.length > 0) {
@@ -196,6 +197,29 @@ function handlePopupOpen(e) {
                         }
                     };
                     document.body.appendChild(script);
+                }
+            }
+
+            // Look for Reddit embeds inside the popup
+            const redditEmbeds = popupElement.querySelectorAll('.reddit-card');
+            if (redditEmbeds.length > 0) {
+                // Check if Reddit embed script is already loaded
+                if (window.redditEmbed) {
+                    // If already loaded, process the embeds
+                    window.redditEmbed.render();
+                } else {
+                    // Load the Reddit embed script
+                    const script = document.createElement('script');
+                    script.src = "https://embed.redditmedia.com/widgets/platform.js";
+                    script.async = true;
+                    script.charset = "UTF-8";
+                    script.onload = function() {
+                        // After script loads, process the embeds
+                        if (window.redditEmbed && typeof window.redditEmbed.render === 'function') {
+                            window.redditEmbed.render();
+                        }
+                    };
+                    document.head.appendChild(script);
                 }
             }
         }
@@ -335,6 +359,12 @@ function createPopupContent(pin) {
         } else if (platformLower === 'tiktok') {
             platformClass = 'tiktok';
             buttonClass = 'tiktok';
+        } else if (platformLower === 'instagram') {
+            platformClass = 'instagram';
+            buttonClass = 'instagram';
+        } else if (platformLower === 'reddit') {
+            platformClass = 'reddit';
+            buttonClass = 'reddit';
         }
     }
     
@@ -429,6 +459,19 @@ function createPopupContent(pin) {
                     data-instgrm-permalink="${url}" 
                     data-instgrm-version="14"
                     style="max-width: 605px; min-width: 325px; min-height: 570px;">
+                </blockquote>
+            `;
+        } else {
+            embedHtml = `<div class="popup-link">${url}</div>`;
+        }
+    }
+    else if (pin.platform && pin.platform.toLowerCase() === 'reddit' && url) {
+        const postId = pin.platform_data?.post_id || '';
+
+        if (postId) {
+            embedHtml = `
+                <blockquote class="reddit-card" style="min-height:  480px;">
+                    <a href="${url}">View this Reddit post</a>
                 </blockquote>
             `;
         } else {

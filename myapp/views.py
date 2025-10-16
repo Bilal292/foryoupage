@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from .models import Pin, YouTubePin, TikTokPin, InstagramPin
+from .models import Pin, YouTubePin, TikTokPin, InstagramPin, RedditPin
 import re
 import random, requests
 from rest_framework import generics
@@ -19,6 +19,7 @@ ALLOWED_PLATFORMS = {
     "tiktok": r"(?:www\.|vm\.|vt\.)?tiktok\.com/",
     "youtube_shorts": r"(?:www\.|m\.)?youtube\.com/shorts/",
     "instagram": r"(?:www\.)?instagram\.com/(p|reel)/",
+    "reddit": r"(?:www\.)?reddit\.com/r/[^/]+/(comments|s)/[^/]+/",
 }
 
 
@@ -72,6 +73,23 @@ def resolve_tiktok_url(url):
     except requests.exceptions.RequestException:
         return url
 
+def resolve_reddit_url(url):
+    """
+    Resolve shortened Reddit URLs to their full URLs
+    Returns the full URL or the original URL if resolution fails
+    """
+    try:
+        # Make a HEAD request to follow redirects
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        final_url = response.url
+        
+        # Verify it's a Reddit URL
+        if 'reddit.com' in final_url:
+            return final_url
+        return url
+    except requests.exceptions.RequestException:
+        return url
+
 def extract_tiktok_video_id(url):
     """Extract TikTok video/photo ID from URL"""
     # If it's a shortened URL, resolve it first
@@ -100,6 +118,12 @@ def validate_and_sanitize_url(url):
     return True
 
 def get_link_platform(link):
+    # First, check if it's a Reddit short URL and resolve it
+    if 'reddit.com/r/' in link and '/s/' in link:
+        resolved_link = resolve_reddit_url(link)
+        # Now check the resolved link
+        link = resolved_link
+    
     platform_detected = None
     for name, pattern in ALLOWED_PLATFORMS.items():
         if re.search(pattern, link, re.IGNORECASE):
@@ -206,7 +230,8 @@ def create_pin(request):
         platform_display = {
             "youtube_shorts": "YouTube Shorts",
             "tiktok": "TikTok",
-            "instagram": "Instagram"
+            "instagram": "Instagram",
+            "reddit": "Reddit"
         }.get(link_platform, "Unknown")
         return Response({"message": "Valid link", "platform": platform_display})
 
@@ -324,6 +349,39 @@ def create_pin(request):
             "shortcode": instagram_pin.shortcode
         }
         return Response(serializer_data)
+    elif link_platform == "reddit":
+        # If it's a short URL, resolve it first
+        if '/s/' in link:
+            resolved_url = resolve_reddit_url(link)
+        else:
+            resolved_url = link
+        
+        # Extract post ID from Reddit URL
+        match = re.search(r'reddit\.com/r/[^/]+/comments/([^/?]+)', resolved_url)
+        post_id = match.group(1) if match else None
+        
+        if not post_id:
+            pin.delete()  # Clean up the pin since we couldn't extract the post ID
+            return Response({"error": "Could not extract Reddit post ID"}, status=400)
+        
+        # Create RedditPin with the resolved URL
+        reddit_pin = RedditPin.objects.create(
+            pin=pin,
+            url=resolved_url,
+            post_id=post_id
+        )
+        
+        serializer_data = {
+            "id": pin.id,
+            "latitude": pin.latitude,
+            "longitude": pin.longitude,
+            "created_at": pin.created_at,
+            "is_active": pin.is_active,
+            "platform": "Reddit",
+            "url": reddit_pin.url,
+            "post_id": reddit_pin.post_id
+        }
+        return Response(serializer_data)
     
     # If we get here, the platform wasn't handled
     pin.delete()  # Clean up the pin since we couldn't create the platform-specific part
@@ -360,6 +418,3 @@ def terms_and_conditions(request):
     }
     return render(request, 'terms_and_conditions.html', context)
 
-@login_required(login_url="map")
-def secret_map_view(request):
-    return render(request, "secret_map.html")

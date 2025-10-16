@@ -402,6 +402,19 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.platform-badge.reddit {
+    background-color: #FF4500;
+}
+
+.popup-button.reddit {
+    background-color: #FF4500;
+    color: white;
+}
+
+.popup-button.reddit:hover {
+    background-color: #E03A00;
+}
+
 .popup-button i {
     margin-right: 8px;
 }
@@ -477,6 +490,10 @@ body {
 
 .twitter-embed .embed-fallback-message i {
     color: #1DA1F2;
+}
+
+.reddit-embed .embed-fallback-message i {
+    color: #FF4500;
 }
 
 /* ===== SEARCH STYLES ===== */

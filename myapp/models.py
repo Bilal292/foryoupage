@@ -40,3 +40,11 @@ class InstagramPin(models.Model):
     def __str__(self):
         return f"Instagram pin: {self.url}"
     
+class RedditPin(models.Model):
+    pin = models.OneToOneField(Pin, on_delete=models.CASCADE, related_name='reddit_pin')
+    url = models.URLField()
+    post_id = models.CharField(max_length=50)  # Reddit post ID
+
+    def __str__(self):
+        return f"Reddit pin: {self.url}"
+    

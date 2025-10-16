@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     path('', views.map_view, name='map'),
-    path('secret/', views.secret_map_view, name='secret_map'),
     path('api/pins/create/', views.create_pin, name='pin-create'),
     path('api/pins/in_bounds/', views.pins_in_bounds, name='pins-in-bounds'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),

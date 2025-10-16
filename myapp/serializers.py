@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Pin, YouTubePin, TikTokPin, InstagramPin
+from .models import Pin, YouTubePin, TikTokPin, InstagramPin, RedditPin
 
 class YouTubePinSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,6 +15,11 @@ class InstagramPinSerializer(serializers.ModelSerializer):
     class Meta:
         model = InstagramPin
         fields = ['url', 'shortcode']
+
+class RedditPinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RedditPin
+        fields = ['url', 'post_id']
 
 class PinSerializer(serializers.ModelSerializer):
     platform_data = serializers.SerializerMethodField()
@@ -34,6 +39,9 @@ class PinSerializer(serializers.ModelSerializer):
         # Check if this pin has an InstagramPin
         elif hasattr(obj, 'instagram_pin'):
             return "Instagram"
+        # Check if this pin has a RedditPin
+        elif hasattr(obj, 'reddit_pin'):
+            return "Reddit"
         return "Unknown"
     
     def get_platform_data(self, obj):
@@ -46,6 +54,9 @@ class PinSerializer(serializers.ModelSerializer):
             return serializer.data
         elif hasattr(obj, 'instagram_pin'):
             serializer = InstagramPinSerializer(obj.instagram_pin)
+            return serializer.data
+        elif hasattr(obj, 'reddit_pin'):
+            serializer = RedditPinSerializer(obj.reddit_pin)
             return serializer.data
         return {}
         
