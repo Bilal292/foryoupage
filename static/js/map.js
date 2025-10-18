@@ -885,6 +885,16 @@ function fallbackCopyTextToClipboard(text) {
 }
 
 function handleRandomPinClick() {
+    // Close any open popup before starting
+    if (currentPopup && currentPopup.isOpen()) {
+        currentPopup.close();
+    }
+
+    // Clear all existing markers
+    if (markers) {
+        markers.clearLayers();
+    }
+
     // Hide the search bar when loading random pin
     const searchContainer = document.querySelector('.search-container');
     if (searchContainer) {
