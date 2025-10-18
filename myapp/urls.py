@@ -9,4 +9,5 @@ urlpatterns = [
     path('terms-and-conditions/', views.terms_and_conditions, name='terms_and_conditions'),
     path('api/pins/random/', views.random_pin, name='random-pin'),
     path('reddit/auth/callback', views.reddit_auth_callback, name='reddit_auth_callback'),
+    path('api/pins/<int:pin_id>/', views.get_pin_by_id, name='get-pin-by-id'),
 ]

@@ -420,6 +420,15 @@ def random_pin(request):
     serializer = PinSerializer(pin)
     return Response(serializer.data)
 
+@api_view(['GET'])
+def get_pin_by_id(request, pin_id):
+    try:
+        pin = Pin.objects.get(id=pin_id, is_active=True)
+        serializer = PinSerializer(pin)
+        return Response(serializer.data)
+    except Pin.DoesNotExist:
+        return Response({"error": "Pin not found"}, status=404)
+
 # ----------------------------
 # Template View
 # ----------------------------

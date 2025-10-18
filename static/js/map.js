@@ -2,6 +2,8 @@
 window.openRandomPinPopup = false;
 window.randomPinId = null;
 window.isGoingToRandomPin = false;
+window.isGoingToUrlPin = false;
+window.urlPinId = null;
 
 let selectedCoordinates = null;
 let mapClickHandler = null;
@@ -36,6 +38,11 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function getQueryParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
 }
 
 function showToast(message, type = 'success') {
@@ -122,6 +129,12 @@ function initializeMap() {
     
     // Check initial zoom level
     updateZoomLevelIndicator();
+    
+    // Check for pin parameter in URL
+    const pinId = getQueryParam('pin');
+    if (pinId) {
+        handleUrlPin(pinId);
+    }
 }
 
 // ===== MAP EVENT LISTENERS =====
@@ -153,6 +166,12 @@ function handlePopupOpen(e) {
     const popupCloseBtn = document.getElementById('popupCloseBtn');
     if (popupCloseBtn) {
         popupCloseBtn.style.display = 'flex';
+    }
+    
+    // Show the share button
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) {
+        shareBtn.style.display = 'flex';
     }
 
     // Handle embeds
@@ -258,6 +277,12 @@ function handlePopupClose(e) {
         popupCloseBtn.style.display = 'none';
     }
     
+    // Hide the share button
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) {
+        shareBtn.style.display = 'none';
+    }
+    
     // Reset the flag after a short delay
     setTimeout(() => {
         justClosedPopup = false;
@@ -278,6 +303,12 @@ function handleMapMoveEnd() {
     // If we're going to a random pin, don't close the popup
     if (window.isGoingToRandomPin) {
         window.isGoingToRandomPin = false;
+        return;
+    }
+    
+    // If we're going to a URL pin, don't close the popup
+    if (window.isGoingToUrlPin) {
+        window.isGoingToUrlPin = false;
         return;
     }
     
@@ -613,6 +644,11 @@ function loadPins() {
             if (window.randomPinId) {
                 const randomPin = pins.find(pin => pin.id === window.randomPinId);
             }
+            
+            // If we have a URL pin ID, check if it's in the loaded pins
+            if (window.urlPinId) {
+                const urlPin = pins.find(pin => pin.id === window.urlPinId);
+            }
         })
         .catch(error => {
             console.error("Error loading pins:", error);
@@ -777,6 +813,12 @@ function initializeUI() {
             }
         });
     }
+    
+    // Share button functionality
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', handleShareClick);
+    }
 
     randomPinBtn.addEventListener("click", handleRandomPinClick);
 
@@ -795,6 +837,51 @@ function initializeUI() {
     
     // Setup search functionality
     setupSearch();
+}
+
+function handleShareClick() {
+    if (!currentPopup || !currentPopup._source || !currentPopup._source.pinData) {
+        showToast("❌ No pin data available", "error");
+        return;
+    }
+
+    const pinId = currentPopup._source.pinData.id;
+    const url = `${window.location.origin}/?pin=${pinId}`;
+
+    // Copy the URL to the clipboard
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url)
+            .then(() => {
+                showToast("✅ Link copied to clipboard!", "success");
+            })
+            .catch(err => {
+                fallbackCopyTextToClipboard(url);
+            });
+    } else {
+        fallbackCopyTextToClipboard(url);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed'; // Avoid scrolling to bottom
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showToast("✅ Link copied to clipboard!", "success");
+        } else {
+            showToast("❌ Failed to copy link", "error");
+        }
+    } catch (err) {
+        showToast("❌ Failed to copy link", "error");
+    }
+
+    document.body.removeChild(textArea);
 }
 
 function handleRandomPinClick() {
@@ -875,6 +962,94 @@ function handleRandomPinClick() {
         })
         .catch(error => {
             showToast("❌ Error fetching random pin", "error");
+            randomPinBtn.disabled = false;
+            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+            
+            // Show the search bar again if there was an error
+            if (searchContainer) {
+                searchContainer.classList.remove('hidden');
+            }
+        });
+}
+
+function handleUrlPin(pinId) {
+    // Hide the search bar when loading URL pin
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.add('hidden');
+    }
+    
+    // Hide zoom level indicator
+    if (zoomLevelIndicator) {
+        zoomLevelIndicator.classList.add('hidden');
+    }
+    
+    // Show loading indicator
+    const randomPinBtn = document.getElementById("randomPinBtn");
+    randomPinBtn.disabled = true;
+    randomPinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch(`/api/pins/${pinId}/`)
+        .then(res => {
+            if (!res.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return res.json();
+        })
+        .then(pin => {
+            if (pin.error) {
+                showToast(`❌ ${pin.error}`, "error");
+                randomPinBtn.disabled = false;
+                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                
+                // Show the search bar again if there was an error
+                if (searchContainer) {
+                    searchContainer.classList.remove('hidden');
+                }
+                return;
+            }
+            
+            // Store the URL pin ID
+            window.urlPinId = pin.id;
+            window.isGoingToUrlPin = true;
+            
+            // First, pan to the pin's location at a reasonable zoom level
+            map.setView([pin.latitude, pin.longitude], 10, {
+                animate: true,
+                duration: 1.5
+            });
+            
+            // After panning, start the zoom-in process
+            setTimeout(() => {
+                // Load pins for the new area
+                loadPins();
+                
+                // Wait a bit for pins to load, then start zooming
+                setTimeout(() => {
+                    zoomToPin(pin.id)
+                        .then(() => {
+                            // Success! Reset button
+                            randomPinBtn.disabled = false;
+                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            
+                            // The search bar will be hidden by the popupopen event handler
+                        })
+                        .catch(error => {
+                            console.error("Error zooming to pin:", error);
+                            showToast("⚠️ Could not zoom to pin", "warning");
+                            randomPinBtn.disabled = false;
+                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+                            
+                            // Show the search bar again if there was an error
+                            if (searchContainer) {
+                                searchContainer.classList.remove('hidden');
+                            }
+                        });
+                }, 1000);
+            }, 1600);
+        })
+        .catch(error => {
+            showToast("❌ Error fetching pin", "error");
             randomPinBtn.disabled = false;
             randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
             
