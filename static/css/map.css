@@ -169,14 +169,76 @@ body {
 /* ===== TOAST NOTIFICATION ===== */
 .toast-container {
     position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 90px; 
+    left: 0;
+    right: 0;
     z-index: 4000;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    pointer-events: none; /* Allows clicks to pass through */
 }
 
 .toast {
-    min-width: 250px;
+    min-width: auto;
+    width: auto;
+    max-width: 350px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    margin: 0 auto; /* Center the toast within the container */
+    pointer-events: auto; /* Re-enable pointer events for the toast itself */
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast-body {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+
+/* Success toast */
+.toast.text-bg-success {
+    background-color: rgba(25, 135, 84, 0.9);
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+.toast.text-bg-success .toast-body {
+    color: white;
+}
+
+/* Error toast */
+.toast.text-bg-danger {
+    background-color: rgba(220, 53, 69, 0.9);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.toast.text-bg-danger .toast-body {
+    color: white;
+}
+
+/* Primary toast */
+.toast.text-bg-primary {
+    background-color: rgba(13, 110, 253, 0.9);
+    border: 1px solid rgb(255, 255, 255);
+}
+
+.toast.text-bg-primary .toast-body {
+    color: white;
 }
 
 /* ===== MAP STYLES ===== */
@@ -686,6 +748,11 @@ body {
     }
     
     .popup-close-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 20px;
+    }
+    .share-btn {
         width: 35px;
         height: 35px;
         font-size: 20px;
