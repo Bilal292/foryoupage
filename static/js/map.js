@@ -911,13 +911,7 @@ function handleRandomPinClick() {
         .then(pin => {
             if (pin.error) {
                 showToast(`❌ ${pin.error}`, "error");
-                randomPinBtn.disabled = false;
-                randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                
-                // Show the search bar again if there was an error
-                if (searchContainer) {
-                    searchContainer.classList.remove('hidden');
-                }
+                resetRandomPinButton();
                 return;
             }
             
@@ -925,51 +919,70 @@ function handleRandomPinClick() {
             window.randomPinId = pin.id;
             window.isGoingToRandomPin = true;
             
-            // First, pan to the pin's location at a reasonable zoom level
-            map.setView([pin.latitude, pin.longitude], 10, {
-                animate: true,
-                duration: 1.5
-            });
+            // Get current zoom level
+            const currentZoom = map.getZoom();
             
-            // After panning, start the zoom-in process
-            setTimeout(() => {
-                // Load pins for the new area
-                loadPins();
+            // If we're already zoomed out, just fly to the pin
+            if (currentZoom <= 3) {
+                flyToPinAndOpen(pin);
+            } else {
+                // First zoom out to global view with smooth animation
+                map.flyTo(map.getCenter(), 2, {
+                    animate: true,
+                    duration: 2.0
+                });
                 
-                // Wait a bit for pins to load, then start zooming
+                // After zooming out, fly to the pin
                 setTimeout(() => {
-                    zoomToPin(pin.id)
-                        .then(() => {
-                            // Success! Reset button
-                            randomPinBtn.disabled = false;
-                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                            
-                            // The search bar will be hidden by the popupopen event handler
-                        })
-                        .catch(error => {
-                            console.error("Error zooming to pin:", error);
-                            showToast("⚠️ Could not zoom to pin", "warning");
-                            randomPinBtn.disabled = false;
-                            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-                            
-                            // Show the search bar again if there was an error
-                            if (searchContainer) {
-                                searchContainer.classList.remove('hidden');
-                            }
-                        });
-                }, 1000);
-            }, 1600);
+                    flyToPinAndOpen(pin);
+                }, 2500); // Wait for zoom out to complete
+            }
         })
         .catch(error => {
             showToast("❌ Error fetching random pin", "error");
-            randomPinBtn.disabled = false;
-            randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
-            
-            // Show the search bar again if there was an error
-            if (searchContainer) {
-                searchContainer.classList.remove('hidden');
-            }
+            resetRandomPinButton();
         });
+}
+
+function flyToPinAndOpen(pin) {
+    // Fly to the pin location with smooth animation
+    map.flyTo([pin.latitude, pin.longitude], 10, {
+        animate: true,
+        duration: 4.0,  // Slower pan around the globe
+        easeLinearity: 0.3  // More easing for smoother motion
+    });
+    
+    // After flying to the pin, load pins and zoom in to open it
+    setTimeout(() => {
+        // Load pins for the new area
+        loadPins();
+        
+        // Wait a bit for pins to load, then use existing zoomToPin function
+        setTimeout(() => {
+            zoomToPin(pin.id)
+                .then(() => {
+                    // Success! Reset button
+                    resetRandomPinButton();
+                })
+                .catch(error => {
+                    console.error("Error zooming to pin:", error);
+                    showToast("⚠️ Could not zoom to pin", "warning");
+                    resetRandomPinButton();
+                });
+        }, 1000);
+    }, 4500); // Wait for flyTo to complete
+}
+
+function resetRandomPinButton() {
+    const randomPinBtn = document.getElementById("randomPinBtn");
+    randomPinBtn.disabled = false;
+    randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
+    
+    // Show the search bar again if there was an error
+    const searchContainer = document.querySelector('.search-container');
+    if (searchContainer) {
+        searchContainer.classList.remove('hidden');
+    }
 }
 
 function handleUrlPin(pinId) {
