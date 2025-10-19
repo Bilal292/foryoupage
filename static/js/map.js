@@ -988,11 +988,6 @@ function resetRandomPinButton() {
     randomPinBtn.disabled = false;
     randomPinBtn.innerHTML = '<i class="fas fa-random"></i>';
     
-    // Show the search bar again if there was an error
-    const searchContainer = document.querySelector('.search-container');
-    if (searchContainer) {
-        searchContainer.classList.remove('hidden');
-    }
 }
 
 function handleUrlPin(pinId) {
