@@ -136,34 +136,220 @@ body {
 }
 
 /* ===== MODAL STYLES ===== */
-.modal-content {
-    border-radius: 15px;
+.minimalist-modal {
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    background: #efefef;
+    overflow: hidden;
+}
+
+.minimalist-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 0.5rem 0.5rem;
+    background: #fafbfc;
+}
+
+.minimalist-header .modal-title {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: #2c3e50;
+    letter-spacing: -0.02em;
+}
+
+.minimalist-close {
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.minimalist-close:hover {
+    opacity: 1;
+}
+
+.minimalist-body {
+    padding: 1.8rem;
+}
+
+.minimalist-label {
+    font-weight: 500;
+    color: #34495e;
+    margin-bottom: 0.8rem;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+}
+
+.minimalist-input-wrapper {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.minimalist-icon {
+    background: #f8f9fa;
     border: none;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 0.85rem 1rem;
+    color: #7f8c8d;
+    font-size: 0.9rem;
 }
 
-.modal-header {
-    border-bottom: 1px solid #eee;
-    padding: 1.5rem;
+.minimalist-input {
+    border: none;
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    color: #2c3e50;
 }
 
-.modal-body {
-    padding: 1.5rem;
+.minimalist-input:focus {
+    background: #ffffff;
+    box-shadow: none;
+    outline: none;
 }
 
-.form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+.minimalist-options {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
-.btn-primary {
+.minimalist-check {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+}
+
+.minimalist-check:last-child {
+    margin-bottom: 0;
+}
+
+.minimalist-check .form-check-input {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.25rem;
+    cursor: pointer;
+    border: 1.5px solid #ced4da;
+    transition: all 0.2s ease;
+}
+
+.minimalist-check .form-check-input:checked {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+.minimalist-check .form-check-label {
+    cursor: pointer;
+    color: #495057;
+    font-weight: 400;
+    padding-left: 0.6rem;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.minimalist-btn {
     background-color: #0d6efd;
-    border-color: #0d6efd;
+    border: none;
+    border-radius: 10px;
+    padding: 0.85rem;
+    font-weight: 500;
+    font-size: 1rem;
+    color: white;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
 }
 
-.btn-primary:hover {
-    background-color: #0b5ed7;
-    border-color: #0a58ca;
+.minimalist-btn:hover {
+    background: #2980b9;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    transform: translateY(-1px);
+}
+
+.minimalist-terms {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    line-height: 1.6;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #bdc3c7;
+}
+
+.minimalist-terms a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.minimalist-terms a:hover {
+    text-decoration: underline;
+    color: #2980b9;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+/* Focus states */
+.minimalist-input:focus,
+.minimalist-check .form-check-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* ===== PLATFORM ICONS STYLES ===== */
+.platform-label-container {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.5rem;
+}
+
+.platform-label-info {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    margin-top: -0.3rem;
+}
+
+.platform-icons {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.platform-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: #000000;
+    transition: all 0.2s ease;
+    cursor: default;
+    padding: 0.4rem;
+    border-radius: 6px;
+    width: 70px;
+}
+
+.platform-icon i {
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+    color: #ffffff;
+}
+
+.platform-icon span {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+/* Adjust modal label spacing */
+.minimalist-label {
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+    color: #2c3e50;
 }
 
 /* ===== TOAST NOTIFICATION ===== */
@@ -802,6 +988,36 @@ body {
     .search-result-item {
         padding: 12px 15px;
     }
+
+    .minimalist-body {
+        padding: 1.4rem;
+    }
+    
+    .minimalist-header .modal-title {
+        font-size: 1.1rem;
+    }
+    
+    .minimalist-options {
+        padding: 1rem 1.2rem;
+    }
+    
+    .minimalist-btn {
+        padding: 0.8rem;
+        font-size: 0.95rem;
+    }
+
+    .platform-icons {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .platform-icon {
+        flex: 0 0 calc(50% - 0.5rem);
+        margin-bottom: 0.5rem;
+        width: auto;
+    }
 }
 
 @media (max-width: 480px) {
@@ -813,5 +1029,19 @@ body {
     #searchInput {
         padding: 10px 12px;
         font-size: 14px;
+    }
+
+    .platform-icon {
+        flex: 0 0 100%;
+        max-width: 100px;
+        margin: 0 auto 0.5rem;
+    }
+    
+    .platform-icon i {
+        font-size: 1.1rem;
+    }
+    
+    .platform-icon span {
+        font-size: 0.65rem;
     }
 }
